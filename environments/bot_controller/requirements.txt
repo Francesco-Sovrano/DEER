@@ -1,0 +1,9 @@
+gym
+
+scikit-spatial
+scipy
+numpy
+matplotlib
+triangle
+opencv-python-headless
+ray

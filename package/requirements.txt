@@ -1,0 +1,17 @@
+cython
+# Plotter
+matplotlib
+imageio
+seaborn
+Pillow
+more_itertools
+runstats
+scikit-learn
+
+tensorflow==2.11.0
+tensorflow_probability==0.19.0
+
+torch==1.13.1
+
+ray[rllib]==2.2.0
+pandas
