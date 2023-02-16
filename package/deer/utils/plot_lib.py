@@ -36,7 +36,7 @@ def wrap_string(s, max_len=10):
 		for i in range(int(np.ceil(len(s)/max_len)))
 	]).strip()
 
-def line_plot(logs, figure_file, max_plot_size=20, show_deviation=False, base_list=None, base_shared_name='baseline', average_non_baselines=None, buckets_average='median'):
+def line_plot(logs, figure_file, max_plot_size=20, max_length=None, show_deviation=False, base_list=None, base_shared_name='baseline', average_non_baselines=None, buckets_average='median'):
 	assert not base_list or len(base_list)==len(logs), f"base_list (len {len(base_list)}) and logs (len {len(logs)}) must have same lenght or base_list should be empty"
 	log_count = len(logs)
 	# Get plot types
@@ -77,12 +77,10 @@ def line_plot(logs, figure_file, max_plot_size=20, show_deviation=False, base_li
 			print(name, " has not enough data for a reasonable plot")
 			continue
 		print('Extracting data from:',name)
-		if length > max_plot_size:
-			plot_size = max_plot_size
-			data_per_plotpoint = length//plot_size
-		else:
-			plot_size = length
-			data_per_plotpoint = 1
+		if not max_length:
+			max_length = length
+		data_per_plotpoint = int(np.ceil(max_length/max_plot_size))
+		plot_size = int(np.ceil(length/data_per_plotpoint))
 		# Build x, y
 		stat = stats[log_id]
 		x = {
@@ -292,7 +290,8 @@ def line_plot_files(url_list, name_list, figure_file, max_step=None, max_plot_si
 			'length':length, 
 			'line_example': parse_line(line_example, statistics_list=statistics_list, step_type=step_type)
 		})
-	line_plot(logs, figure_file, max_plot_size, show_deviation, base_list, base_shared_name, average_non_baselines, buckets_average)
+	max_length = max(logs, key=lambda x: x['length'])['length']
+	line_plot(logs, figure_file, max_plot_size=max_plot_size, max_length=max_length, show_deviation=show_deviation, base_list=base_list, base_shared_name=base_shared_name, average_non_baselines=average_non_baselines, buckets_average=buckets_average)
 
 def parse_line(line, statistics_list=None, step_type='num_env_steps_sampled'):
 	key_list = line.columns.tolist()
