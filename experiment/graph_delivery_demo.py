@@ -14,10 +14,10 @@ import numpy as np
 import copy
 
 from deer.agents.xasac import XASAC, XASACConfig
-from environments import *
+from environment import *
 
 number_of_agents = 9
-default_environment = 'MAGraphDelivery-FullWorldSomeAgents'
+default_environment = 'GraphDelivery'
 reward_fn = 'unitary_sparse'
 
 stop_training_after_n_step = int(1e8)

@@ -16,9 +16,9 @@ from matplotlib.text import Text
 from matplotlib.collections import PatchCollection
 from matplotlib.lines import Line2D
 
-from ...utils.geometry import *
-from .lib.multi_agent_road_network import MultiAgentRoadNetwork
-from .lib.multi_agent_road_cultures import *
+from .utils.geometry import *
+from .utils.multi_agent_road_network import MultiAgentRoadNetwork
+from .utils.multi_agent_road_cultures import *
 
 import logging
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ is_target_junction = lambda j: j.is_available_target
 EMPTY_FEATURE_PLACEHOLDER = 0
 
 class FullWorldAllAgents_Agent:
+	decides_speed = False
 
 	def seed(self, seed=None):
 		# logger.warning(f"Setting random seed to: {seed}")
@@ -56,7 +57,6 @@ class FullWorldAllAgents_Agent:
 		self.obs_car_features = len(culture.agent_properties) if culture else 0  # Number of binary CAR features in Hard Culture (excluded speed)
 		# Spaces
 		self.discrete_action_space = self.env_config.get('n_discrete_actions',None)
-		self.decides_speed = False
 		if self.discrete_action_space:
 			self.allowed_orientations = np.linspace(-1, 1, self.env_config['n_discrete_actions']).tolist()
 			if not self.decides_speed:
@@ -119,7 +119,7 @@ class FullWorldAllAgents_Agent:
 		self.closest_junction = self.road_network.junction_dict[car_point]
 		self.closest_road = None
 		# speed
-		self.car_speed = self.env_config['min_speed'] if self.decides_speed else self.env_config['max_speed']
+		self.car_speed = self.env_config.get('min_speed',0.5) if self.decides_speed else self.env_config['max_speed']
 		#####
 		self.last_closest_road = None
 		self.last_closest_junction = None
@@ -374,7 +374,7 @@ class FullWorldAllAgents_Agent:
 		##################################
 		if self.decides_speed:
 			speed_action = action_vector[1]
-			self.car_speed = np.clip((speed_action+1)/2, self.env_config['min_speed'], self.env_config['max_speed'])
+			self.car_speed = np.clip((speed_action+1)/2, self.env_config.get('min_speed',0.5), self.env_config['max_speed'])
 		##################################
 		## Move car
 		##################################

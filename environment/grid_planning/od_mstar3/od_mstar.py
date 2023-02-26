@@ -7,13 +7,13 @@ converting everything that can be immutable into an immutable structure
 Intended to support both mstar and rMstar."""
 
 
-from environments.primal.od_mstar3 import workspace_graph
+from . import workspace_graph
 import sys
 import time as timer  # So that we can use the time command in ipython
-from environments.primal.od_mstar3 import SortedCollection
-from environments.primal.od_mstar3.col_set_addition import add_col_set_recursive, add_col_set
-from environments.primal.od_mstar3.col_set_addition import effective_col_set
-from environments.primal.od_mstar3.col_set_addition import OutOfTimeError, NoSolutionError, col_set_add
+from . import SortedCollection
+from .col_set_addition import add_col_set_recursive, add_col_set
+from .col_set_addition import effective_col_set
+from .col_set_addition import OutOfTimeError, NoSolutionError, col_set_add
 try:
     import ipdb as pdb
 except ImportError:

@@ -14,7 +14,7 @@ import numpy as np
 import copy
 
 from deer.agents.xasac import XASAC, XASACConfig
-from environments import *
+from environment import *
 
 def copy_dict_and_update(d,u):
 	new_dict = copy.deepcopy(d)

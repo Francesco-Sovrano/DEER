@@ -4,7 +4,7 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 import deer.utils.plot_lib as plt
 import sys
 import os
-from environments import *
+from environment import *
 
 HORIZON = 2**8
 VISIBILITY_RADIUS = 16

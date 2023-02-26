@@ -14,6 +14,7 @@ import psutil  # noqa E402
 
 from deer.experience_buffers.buffer.pseudo_prioritized_buffer import PseudoPrioritizedBuffer, get_batch_infos, get_batch_indexes, get_batch_uid, discard_batch
 from deer.experience_buffers.buffer.buffer import Buffer
+from deer.experience_buffers.explanation_cluster_manager import *
 from deer.utils import ReadWriteLock
 
 from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch, DEFAULT_POLICY_ID
@@ -21,6 +22,68 @@ from ray.util.iter import ParallelIteratorWorker
 from ray.util.timer import _Timer as TimerStat
 
 logger = logging.getLogger(__name__)
+
+def get_clustered_replay_buffer(config):
+	assert config.batch_mode == "complete_episodes" or not config.clustering_options["cluster_with_episode_type"], f"This algorithm requires 'complete_episodes' as batch_mode when 'cluster_with_episode_type' is True"
+	clustering_scheme_type = config.clustering_options.get("clustering_scheme", None)
+	# no need for unclustered_buffer if clustering_scheme_type is none
+	ratio_of_samples_from_unclustered_buffer = config.clustering_options["ratio_of_samples_from_unclustered_buffer"] if clustering_scheme_type else 0
+	local_replay_buffer = LocalReplayBuffer(
+		config.buffer_options, 
+		learning_starts=config.num_steps_sampled_before_learning_starts,
+		seed=config.seed,
+		cluster_selection_policy=config.clustering_options["cluster_selection_policy"],
+		ratio_of_samples_from_unclustered_buffer=ratio_of_samples_from_unclustered_buffer,
+	)
+	clustering_scheme = ClusterManager(clustering_scheme_type, config.clustering_options["clustering_scheme_options"])
+	return local_replay_buffer, clustering_scheme
+
+def assign_types(multi_batch, clustering_scheme, batch_fragment_length, with_episode_type=True, training_step=None):
+	if not isinstance(multi_batch, MultiAgentBatch):
+		multi_batch = MultiAgentBatch({DEFAULT_POLICY_ID: multi_batch}, multi_batch.count)
+	
+	# if not with_episode_type:
+	# 	batch_list = multi_batch.timeslices(batch_fragment_length) if multi_batch.count > batch_fragment_length else [multi_batch]
+	# 	for i,batch in enumerate(batch_list):
+	# 		for pid,sub_batch in batch.policy_batches.items():
+	# 			get_batch_infos(sub_batch)['batch_type'] = clustering_scheme.get_batch_type(sub_batch, training_step=training_step, episode_step=i, agent_id=pid)		
+	# 	return batch_list
+
+	batch_dict = {}
+	for pid,meta_batch in multi_batch.policy_batches.items():
+		batch_dict[pid] = []
+		batch_list = meta_batch.split_by_episode() if with_episode_type else [meta_batch]
+		for batch in batch_list:
+			sub_batch_count = int(np.ceil(len(batch)/batch_fragment_length))
+			sub_batch_list = [
+				batch[i*batch_fragment_length : (i+1)*batch_fragment_length]
+				for i in range(sub_batch_count)
+			] if len(batch) > batch_fragment_length else [batch]
+			episode_type = clustering_scheme.get_episode_type(sub_batch_list) if with_episode_type else None
+			for i,sub_batch in enumerate(sub_batch_list):
+				batch_type = clustering_scheme.get_batch_type(
+					sub_batch, 
+					episode_type=episode_type, 
+					training_step=training_step, 
+					episode_step=i, 
+					agent_id=pid
+				)
+				sub_batch[SampleBatch.INFOS] = [{'batch_type': batch_type,'training_step': training_step}] # remove unnecessary infos to save some memory
+			batch_dict[pid] += sub_batch_list
+	return [
+		MultiAgentBatch(
+			{
+				pid: b
+				for pid,b in zip(batch_dict.keys(),b_list)
+			},
+			b_list[0].count
+		)
+		for b_list in zip(*batch_dict.values())
+	]
+
+def add_buffer_metrics(results, buffer):
+	results['buffer']=buffer.stats()
+	return results
 
 def apply_to_batch_once(fn, batch_list):
 	updated_batch_dict = {

@@ -14,10 +14,10 @@ import numpy as np
 import copy
 
 from deer.agents.xadqn import XADQN, XADQNConfig
-from environments import *
+from environment import *
 
 number_of_agents = 8
-default_environment = 'Primal'
+default_environment = 'GridPlanning'
 
 stop_training_after_n_step = int(1e8)
 save_n_checkpoints = 10

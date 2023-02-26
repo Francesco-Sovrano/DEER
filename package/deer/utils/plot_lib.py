@@ -151,8 +151,8 @@ def line_plot(logs, figure_file, max_plot_size=20, max_length=None, show_deviati
 			print('#'*10)
 			# print(name)
 			print(f'{yk}:', json.dumps(yv, indent=4))
-			print(f'Steps:', json.dumps(x[yk], indent=4))
-			print('#'*10)
+		print('#'*10)
+		print(f'steps:', json.dumps(x[yk], indent=4))
 	plotted_baseline = False
 	plot_dict = {}
 	for name, line in lines_dict.items():

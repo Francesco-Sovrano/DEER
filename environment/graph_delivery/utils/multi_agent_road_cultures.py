@@ -1,6 +1,6 @@
-from ....utils.culture_lib.culture import Culture, Argument
-# from ....utils.road_lib.road_cell import RoadCell
-# from ....utils.road_lib.road_agent import RoadAgent
+from .culture_lib.culture import Culture, Argument
+# from .road_lib.road_cell import RoadCell
+# from .road_lib.road_agent import RoadAgent
 
 class HeterogeneityCulture(Culture):
 	starting_argument_id = 0

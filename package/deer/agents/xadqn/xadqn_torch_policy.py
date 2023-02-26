@@ -4,7 +4,29 @@ PyTorch policy class used for SAC.
 from ray.rllib.algorithms.dqn.dqn_torch_policy import *
 import numpy as np
 
-from deer.experience_buffers.replay_ops import add_policy_signature
+def add_policy_signature(batch, policy): # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
+	# train_step = np.array((policy.num_grad_updates,), dtype=np.float32)
+	# if train_step > 0: print(train_step)
+	policy_exploration_state = policy.get_exploration_state()
+	if len(policy_exploration_state) > 1:
+		policy_exploration_state_items = policy_exploration_state.items()
+		policy_exploration_state_items = filter(lambda x: x[0].startswith('cur'), policy_exploration_state_items)
+		# policy_exploration_state_items=list(policy_exploration_state_items)
+		# print(policy_exploration_state_items)
+		policy_entropy_var = next(map(lambda x: x[-1], policy_exploration_state_items), None)
+	else:
+		policy_entropy_var = 0
+	
+	# policy_entropy_var = np.array((policy_entropy_var,), dtype=np.float32)
+	model_entropy_var = policy.model.get_entropy_var()
+	if model_entropy_var is None:
+		model_entropy_var = 0 #np.array((0,), dtype=np.float32)
+	# print("policy_signature:", model_entropy_var,policy_entropy_var)
+	# assert train_step != 0 or policy_entropy_var != 0 or model_entropy_var != 0, "Invalid policy signature!"
+	# batch["policy_signature"] = np.array((policy.num_grad_updates/1000,policy_entropy_var,model_entropy_var), dtype=np.float32)
+	batch["policy_signature"] = np.array((0 if policy_entropy_var!=0 or model_entropy_var!=0 else policy.num_grad_updates/100,policy_entropy_var,model_entropy_var), dtype=np.float32)
+	batch["policy_signature"] = np.tile(batch["policy_signature"],(batch.count,1))
+	return batch
 
 def xa_postprocess_nstep_and_prio(policy, batch, other_agent=None, episode=None):
 	# N-step Q adjustments.

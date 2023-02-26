@@ -12,7 +12,7 @@ from .Primal2Observer import Primal2Observer
 from .Primal2Env import Primal2Env
 from .Map_Generator import *
 
-class Primal(MultiAgentEnv):
+class GridPlanning(MultiAgentEnv):
 	metadata = Primal2Env.metadata
 
 	@staticmethod

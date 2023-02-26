@@ -84,16 +84,16 @@ Module urrently assumes that all actions have equal cost (including
 diagonal vs non-diagonal move
 """
 
-from environments.primal.od_mstar3.col_set_addition import add_col_set_recursive, add_col_set
-from environments.primal.od_mstar3.col_set_addition import NoSolutionError
-from environments.primal.od_mstar3 import SortedCollection
+from .col_set_addition import add_col_set_recursive, add_col_set
+from .col_set_addition import NoSolutionError
+from . import SortedCollection
 from collections import defaultdict
 from functools import wraps
 try:
     import ipdb as pdb
 except ImportError:
     import pdb
-from environments.primal.od_mstar3 import interface
+from . import interface
 import math
 
 # Define values delegated to free spaces and spaces with obstacles

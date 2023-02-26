@@ -7,10 +7,10 @@ source .env/bin/activate
 pip install -U pip setuptools wheel psutil Cython
 
 echo 'Installing env CarController..'
-pip install -r environments/bot_controller/requirements.txt
+pip install -r environment/bot_controller/requirements.txt
 
 # echo 'Installing env SpecialAtari..'
-# pip install -r environments/special_atari/requirements.txt
+# pip install -r environment/special_atari/requirements.txt
 # pip install gym[atari]==0.14.0
 # mkdir Atari-ROM
 # cd Atari-ROM
@@ -21,21 +21,21 @@ pip install -r environments/bot_controller/requirements.txt
 # cd ..
 
 # echo 'Installing env Shepherd..'
-# pip install -r environments/shepherd/requirements.txt
+# pip install -r environment/shepherd/requirements.txt
 
 # echo 'Installing env GFootball..'
-# pip install -r environments/gfootball/requirements.txt
+# pip install -r environment/gfootball/requirements.txt
 
 # echo 'Installing env PettingZoo..'
-# pip install -r environments/petting_zoo/requirements.txt
+# pip install -r environment/petting_zoo/requirements.txt
 
 echo 'Installing env PRIMAL..'
-pip install -r environments/primal/requirements.txt
-cd environments/primal/od_mstar3
+pip install -r environment/primal/requirements.txt
+cd environment/primal/od_mstar3
 python3 setup.py build_ext --inplace
 rm -r build
 cd ../../..
-cd environments/primal/astarlib3
+cd environment/primal/astarlib3
 python3 setup.py build_ext --inplace
 rm -r build
 cd ../../..
@@ -44,7 +44,7 @@ echo 'Installing DEER..'
 pip install -e ./package # cmake is needed
 pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.13.1+cpu.html
 
-# echo 'Fixing environments rendering'
-# pip install pyglet==1.5.11 # fix for rendering environments
+# echo 'Fixing environment rendering'
+# pip install pyglet==1.5.11 # fix for rendering environment
 # echo 'Fixing protobuf'
 # pip install protobuf==3.20.* # https://github.com/protocolbuffers/protobuf/issues/10051

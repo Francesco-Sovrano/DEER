@@ -27,10 +27,9 @@ from ray.rllib.execution.common import (
 )
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
-from deer.experience_buffers.replay_ops import get_clustered_replay_buffer, assign_types, add_policy_signature, add_buffer_metrics
-from deer.experience_buffers.replay_buffer import get_batch_uid
+from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, get_clustered_replay_buffer, assign_types, add_buffer_metrics
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
-from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy
+from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
 
 import random
 import numpy as np

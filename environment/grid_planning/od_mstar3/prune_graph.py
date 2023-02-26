@@ -1,4 +1,4 @@
-from environments.primal.od_mstar3 import workspace_graph
+from . import workspace_graph
 import networkx as nx #Python network analysis module
 
 

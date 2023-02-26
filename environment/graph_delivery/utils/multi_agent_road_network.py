@@ -1,5 +1,5 @@
-from ....utils.road_lib.road_network import RoadNetwork
-from ....utils.road_lib.road_agent import RoadAgent
+from .road_lib.road_network import RoadNetwork
+from .road_lib.road_agent import RoadAgent
 
 class MultiAgentRoadNetwork(RoadNetwork):
 
