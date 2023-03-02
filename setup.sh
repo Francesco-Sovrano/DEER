@@ -6,8 +6,8 @@ source .env/bin/activate
 # echo 'Update the virtual environment'
 pip install -U pip setuptools wheel psutil Cython
 
-echo 'Installing env CarController..'
-pip install -r environment/bot_controller/requirements.txt
+echo 'Installing env GraphDelivery..'
+pip install -r environment/graph_delivery/requirements.txt
 
 # echo 'Installing env SpecialAtari..'
 # pip install -r environment/special_atari/requirements.txt
@@ -29,8 +29,8 @@ pip install -r environment/bot_controller/requirements.txt
 # echo 'Installing env PettingZoo..'
 # pip install -r environment/petting_zoo/requirements.txt
 
-echo 'Installing env PRIMAL..'
-pip install -r environment/primal/requirements.txt
+echo 'Installing env GridPlanning..'
+pip install -r environment/grid_planning/requirements.txt
 cd environment/primal/od_mstar3
 python3 setup.py build_ext --inplace
 rm -r build
