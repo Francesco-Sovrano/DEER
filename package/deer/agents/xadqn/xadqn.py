@@ -187,6 +187,23 @@ class XADQN(DQN):
 
 			# Store new samples in replay buffer.
 			sub_batch_iter = assign_types(new_sample_batch, self.clustering_scheme, self.sample_batch_size, with_episode_type=self.config.clustering_options['cluster_with_episode_type'], training_step=self.local_replay_buffer.get_train_steps())
+
+			# ############
+			# explanation_batch_dict = {}
+			# for sub_batch in sub_batch_iter:
+			# 	explanatory_label = sub_batch[SampleBatch.INFOS]['batch_type']
+			# 	if explanatory_label not in explanation_batch_dict:
+			# 		explanation_batch_dict[explanatory_label] = []
+			# 	explanation_batch_dict[explanatory_label].append(sub_batch)
+			
+			# class_list = list(explanation_batch_dict.keys())
+			# positive_class = class_list[0]
+			# negative_class = class_list[1]
+			# anchor = explanation_batch_dict[positive_class][0]
+			# positive = explanation_batch_dict[positive_class][1]
+			# negative = explanation_batch_dict[negative_class][0]
+			# ############
+
 			total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
 		global_vars = {
