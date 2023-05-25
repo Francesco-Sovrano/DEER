@@ -31,6 +31,9 @@ from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, g
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
 from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
 
+from deer.experience_buffers.buffer.buffer import Buffer
+from collections import defaultdict, deque
+
 import random
 import numpy as np
 
@@ -115,7 +118,7 @@ class XADQNConfig(DQNConfig):
 
 ########################
 # XADQN Execution Plan
-########################	
+########################
 
 class XADQN(DQN):
 	def __init__(self, *args, **kwargs):
@@ -143,6 +146,11 @@ class XADQN(DQN):
 		if self.sample_batch_size and self.sample_batch_size > 1:
 			self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
+
+		############
+		self.positive_buffer = Buffer(global_size=10000, seed=42)
+		self.triplet_buffer = deque(maxlen=100)
+		############
 		
 		def add_view_requirements(w):
 			for policy in w.policy_map.values():
@@ -188,21 +196,21 @@ class XADQN(DQN):
 			# Store new samples in replay buffer.
 			sub_batch_iter = assign_types(new_sample_batch, self.clustering_scheme, self.sample_batch_size, with_episode_type=self.config.clustering_options['cluster_with_episode_type'], training_step=self.local_replay_buffer.get_train_steps())
 
-			# ############
-			# explanation_batch_dict = {}
-			# for sub_batch in sub_batch_iter:
-			# 	explanatory_label = sub_batch[SampleBatch.INFOS]['batch_type']
-			# 	if explanatory_label not in explanation_batch_dict:
-			# 		explanation_batch_dict[explanatory_label] = []
-			# 	explanation_batch_dict[explanatory_label].append(sub_batch)
-			
-			# class_list = list(explanation_batch_dict.keys())
-			# positive_class = class_list[0]
-			# negative_class = class_list[1]
-			# anchor = explanation_batch_dict[positive_class][0]
-			# positive = explanation_batch_dict[positive_class][1]
-			# negative = explanation_batch_dict[negative_class][0]
-			# ############
+			############
+			explanation_batch_dict = defaultdict(list)
+			for sub_batch in sub_batch_iter:
+				explanatory_label = sub_batch[SampleBatch.INFOS]['batch_type']
+				explanation_batch_dict[explanatory_label].append(sub_batch)
+				self.positive_buffer.add(sub_batch, explanatory_label)
+
+
+			anchor_class,negative_class = random.choice(list(explanation_batch_dict.keys()),2)
+			self.triplet_buffer.append((
+				random.choice(explanation_batch_dict[anchor_class]), # anchor
+				random.choice(self.positive_buffer.batches[anchor_class]), # positive
+				random.choice(explanation_batch_dict[negative_class]) # negative	
+			))
+			############
 
 			total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
