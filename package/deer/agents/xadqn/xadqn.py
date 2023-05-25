@@ -204,7 +204,7 @@ class XADQN(DQN):
 				self.positive_buffer.add(sub_batch, explanatory_label)
 
 
-			anchor_class,negative_class = random.choice(list(explanation_batch_dict.keys()),2)
+			anchor_class,negative_class = random.sample(list(explanation_batch_dict.keys()),2)
 			self.triplet_buffer.append((
 				random.choice(explanation_batch_dict[anchor_class]), # anchor
 				random.choice(self.positive_buffer.batches[anchor_class]), # positive
