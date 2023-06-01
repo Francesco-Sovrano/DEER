@@ -21,7 +21,7 @@ def get_input_recursively(_obs_space, valid_key_fn=lambda x: True):
 	return [_obs_space]
 
 class AdaptiveModel(nn.Module):
-	def __init__(self, obs_space, config):
+	def __init__(self, obs_space, **args):
 		super().__init__()
 		if hasattr(obs_space, 'original_space'):
 			obs_space = obs_space.original_space

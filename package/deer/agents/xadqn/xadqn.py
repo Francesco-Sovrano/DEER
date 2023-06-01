@@ -14,28 +14,30 @@ from ray.rllib.evaluation.collectors.simple_list_collector import SimpleListColl
 from ray.rllib.policy.sample_batch import SampleBatch, concat_samples
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils.metrics import (
-    NUM_ENV_STEPS_SAMPLED,
-    NUM_AGENT_STEPS_SAMPLED,
+	NUM_ENV_STEPS_SAMPLED,
+	NUM_AGENT_STEPS_SAMPLED,
 )
 from ray.rllib.execution.train_ops import (
-    train_one_step,
-    multi_gpu_train_one_step,
+	train_one_step,
+	multi_gpu_train_one_step,
 )
 from ray.rllib.execution.common import (
-    LAST_TARGET_UPDATE_TS,
-    NUM_TARGET_UPDATES,
+	LAST_TARGET_UPDATE_TS,
+	NUM_TARGET_UPDATES,
 )
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
 from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, get_clustered_replay_buffer, assign_types, add_buffer_metrics
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
 from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
+from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
 
 from deer.experience_buffers.buffer.buffer import Buffer
 from collections import defaultdict, deque
 
 import random
 import numpy as np
+import gym
 
 class PolicySignatureListCollector(SimpleListCollector):
 	def get_inference_input_dict(self, policy_id):
@@ -148,8 +150,29 @@ class XADQN(DQN):
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
 
 		############
+		self.siamese_config = config.get("siamese_config",{})
+
 		self.positive_buffer = Buffer(global_size=10000, seed=42)
-		self.triplet_buffer = deque(maxlen=100)
+		self.triplet_buffer = {
+			'anchor': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+			'positive': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+			'negative': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+		}
+
+		_, env_creator = self._get_env_id_and_creator(config.env, config)
+		tmp_env = env_creator(config["env_config"])
+
+		self.siamese_model = AdaptiveModel(gym.spaces.Dict({
+			f'fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}': gym.spaces.Dict({
+				's_t': tmp_env.observation_space,
+				's_(t+1)': tmp_env.observation_space,
+				'a_t': tmp_env.action_space,
+				'r_t': gym.spaces.Box(low= float('-inf'), high= float('inf'), shape= 1, dtype=np.float32),
+			})
+		}))
+		self.loss_fn = nn.TripletMarginLoss()
+		self.optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-10)
+		self.siamese_model.to(self.siamese_config.get("device", "cpu"))
 		############
 		
 		def add_view_requirements(w):
@@ -161,6 +184,16 @@ class XADQN(DQN):
 				if config.model["custom_model_config"].get("add_nonstationarity_correction", False):
 					policy.view_requirements["policy_signature"] = ViewRequirement("policy_signature", used_for_compute_actions=True, shift=0)
 		self.workers.foreach_worker(add_view_requirements)
+
+	def format_transition_for_siamese_input(self, x):
+		return {
+			f'fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}': {
+				's_t': x[CUR_OBS],
+				's_(t+1)': x[NEXT_OBS],
+				'a_t': x[ACTIONS],
+				'r_t': x[REWARDS],
+			}
+		}
 		
 	@override(DQN)
 	def training_step(self):
@@ -205,14 +238,28 @@ class XADQN(DQN):
 
 
 			anchor_class,negative_class = random.sample(list(explanation_batch_dict.keys()),2)
-			self.triplet_buffer.append((
-				random.choice(explanation_batch_dict[anchor_class]), # anchor
-				random.choice(self.positive_buffer.batches[anchor_class]), # positive
-				random.choice(explanation_batch_dict[negative_class]) # negative	
-			))
+			self.triplet_buffer['anchor'].append(random.choice(explanation_batch_dict[anchor_class]))
+			self.triplet_buffer['positive'].append(random.choice(self.positive_buffer.batches[anchor_class]))
+			self.triplet_buffer['negative'].append(random.choice(explanation_batch_dict[negative_class]))
 			############
 
 			total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
+
+		############
+		self.siamese_model.train()
+		self.optimizer.zero_grad()  # Clear gradients
+
+		anchor = self.triplet_buffer['anchor']
+		positive = self.triplet_buffer['positive']
+		negative = self.triplet_buffer['negative']
+		out_a = self.siamese_model(anchor)  # Forward pass
+		out_p = self.siamese_model(positive)  # Forward pass
+		out_n = self.siamese_model(negative)  # Forward pass
+
+		loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
+		loss.backward()  # Backward pass (compute gradients)
+		self.optimizer.step()  # Update parameters
+		############
 
 		global_vars = {
 			"timestep": self._counters[NUM_ENV_STEPS_SAMPLED],
