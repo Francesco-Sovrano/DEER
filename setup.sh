@@ -6,39 +6,8 @@ source .env/bin/activate
 # echo 'Update the virtual environment'
 pip install -U pip setuptools wheel psutil Cython
 
-echo 'Installing env GraphDelivery..'
-pip install -r environment/graph_delivery/requirements.txt
-
-# echo 'Installing env SpecialAtari..'
-# pip install -r environment/special_atari/requirements.txt
-# pip install gym[atari]==0.14.0
-# mkdir Atari-ROM
-# cd Atari-ROM
-# wget http://www.atarimania.com/roms/Roms.rar
-# unrar x Roms.rar
-# unzip ROMS.zip
-# python -m atari_py.import_roms ROMS
-# cd ..
-
-# echo 'Installing env Shepherd..'
-# pip install -r environment/shepherd/requirements.txt
-
-# echo 'Installing env GFootball..'
-# pip install -r environment/gfootball/requirements.txt
-
-# echo 'Installing env PettingZoo..'
-# pip install -r environment/petting_zoo/requirements.txt
-
-echo 'Installing env GridPlanning..'
-pip install -r environment/grid_planning/requirements.txt
-cd environment/primal/od_mstar3
-python3 setup.py build_ext --inplace
-rm -r build
-cd ../../..
-cd environment/primal/astarlib3
-python3 setup.py build_ext --inplace
-rm -r build
-cd ../../..
+echo "GridDrive and GraphDrive"
+pip install -r environment/requirements.txt
 
 echo 'Installing DEER..'
 pip install -e ./package # cmake is needed

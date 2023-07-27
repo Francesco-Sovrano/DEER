@@ -1,5 +1,0 @@
-Cython
-ray
-gym
-imageio
-networkx
