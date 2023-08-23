@@ -33,14 +33,14 @@ default_options = {
 	# "preprocessor_pref": "rllib", # this prevents reward clipping on Atari and other weird issues when running from checkpoints
 	"gamma": 0.999, # We use an higher gamma to extend the MDP's horizon; optimal agency on GraphDelivery requires a longer horizon.
 	"seed": 42, # This makes experiments reproducible.
-	"multiagent": {
-		# Optional list of policies to train, or None for all policies.
-		"policies_to_train": None,
-		# When replay_mode=lockstep, RLlib will replay all the agent transitions at a particular timestep together in a batch. This allows the policy to implement differentiable shared computations between agents it controls at that timestep. When replay_mode=independent, transitions are replayed independently per policy.
-		"replay_mode": "independent", # XAER does not support "lockstep", yet
-		# Which metric to use as the "batch size" when building a MultiAgentBatch. The two supported values are: env_steps: Count each time the env is "stepped" (no matter how many multi-agent actions are passed/how many multi-agent observations have been returned in the previous step), agent_steps: Count each individual agent step as one step.
-		"count_steps_by": "env_steps", # XAER does not support "env_steps"?
-	},
+	# "multiagent": {
+	# 	# Optional list of policies to train, or None for all policies.
+	# 	"policies_to_train": None,
+	# 	# When replay_mode=lockstep, RLlib will replay all the agent transitions at a particular timestep together in a batch. This allows the policy to implement differentiable shared computations between agents it controls at that timestep. When replay_mode=independent, transitions are replayed independently per policy.
+	# 	"replay_mode": "independent", # XAER does not support "lockstep", yet
+	# 	# Which metric to use as the "batch size" when building a MultiAgentBatch. The two supported values are: env_steps: Count each time the env is "stepped" (no matter how many multi-agent actions are passed/how many multi-agent observations have been returned in the previous step), agent_steps: Count each individual agent step as one step.
+	# 	"count_steps_by": "env_steps", # XAER does not support "env_steps"?
+	# },
 	# "batch_dropout_rate": 0.5, # Probability of dropping a state transition before adding it to the experience buffer. Set this to any value greater than zero to randomly drop state transitions
 	###########################
 	"batch_mode": "complete_episodes", # For some clustering schemes (e.g. extrinsic_reward, moving_best_extrinsic_reward, etc..) it has to be equal to 'complete_episodes', otherwise it can also be 'truncate_episodes'.

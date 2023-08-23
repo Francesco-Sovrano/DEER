@@ -61,8 +61,7 @@ class AdaptiveModel(nn.Module):
 			self.sub_model_dict[''] = [[nn.Flatten()] for l in other_inputs_list]
 		if not self.sub_model_dict.get('cnn',None) and not self.sub_model_dict.get('fc',None):
 			assert other_inputs_list
-			logger.warning('N.B.: Flattening all observations!')	
-		# print(self.sub_model_dict)
+			logger.warning('N.B.: Flattening all observations!')
 
 	def variables(self, as_dict = False):
 		if as_dict:
@@ -162,11 +161,11 @@ class AdaptiveModel(nn.Module):
 		return [
 			nn.Sequential(
 				Permute((0, 3, 1, 2)),
-				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=9, stride=4, padding=4),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=_units//2+1, kernel_size=9, stride=4, padding=4),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=2, padding=2),
+				nn.Conv2d(in_channels=_units//2+1 , out_channels=_units, kernel_size=5, stride=2, padding=2),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=64 , out_channels=64, kernel_size=3, stride=1, padding=1),
+				nn.Conv2d(in_channels=_units , out_channels=_units, kernel_size=3, stride=1, padding=1),
 				nn.ReLU(),
 				nn.Flatten(),
 			)
@@ -176,6 +175,7 @@ class AdaptiveModel(nn.Module):
 	@staticmethod
 	def fc_head_build(_key,_input_list):
 		_splitted_units = _key.split('-')
+		# print(_splitted_units, _input_list)
 		_units = int(_splitted_units[-1]) if len(_splitted_units) > 1 else 0
 		return [
 			nn.Sequential(

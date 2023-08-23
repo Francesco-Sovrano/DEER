@@ -29,7 +29,7 @@ from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
 from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, get_clustered_replay_buffer, assign_types, add_buffer_metrics
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
-from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
+from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature, torch
 from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
 
 from deer.experience_buffers.buffer.buffer import Buffer
@@ -149,31 +149,29 @@ class XADQN(DQN):
 			self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
 
-		############
-		self.siamese_config = config.get("siamese_config",{})
+		# ############
+		# self.siamese_config = config.get("siamese_config",{})
 
-		self.positive_buffer = Buffer(global_size=10000, seed=42)
-		self.triplet_buffer = {
-			'anchor': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
-			'positive': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
-			'negative': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
-		}
+		# self.positive_buffer = Buffer(global_size=10000, seed=42)
+		# self.triplet_buffer = {
+		# 	'anchor': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+		# 	'positive': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+		# 	'negative': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+		# }
 
-		_, env_creator = self._get_env_id_and_creator(config.env, config)
-		tmp_env = env_creator(config["env_config"])
-
-		self.siamese_model = AdaptiveModel(gym.spaces.Dict({
-			f"fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}": gym.spaces.Dict({
-				's_t': tmp_env.observation_space,
-				's_(t+1)': tmp_env.observation_space,
-				'a_t': tmp_env.action_space,
-				'r_t': gym.spaces.Box(low= float('-inf'), high= float('inf'), shape= (1,), dtype=np.float32),
-			})
-		}),config)
-		self.loss_fn = nn.TripletMarginLoss()
-		self.optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-10)
-		self.siamese_model.to(self.siamese_config.get("device", "cpu"))
-		############
+		# _, env_creator = self._get_env_id_and_creator(config.env, config)
+		# tmp_env = env_creator(config["env_config"])
+		# embedding_size = self.siamese_config.get('embedding_size',64)
+		# self.siamese_model = AdaptiveModel(gym.spaces.Dict({
+		# 	f"s_t": tmp_env.observation_space,
+		# 	f"s_(t+1)": tmp_env.observation_space,
+		# 	f"a_t": tmp_env.action_space,
+		# 	f"r_t": gym.spaces.Box(low= float('-inf'), high= float('inf'), shape= (1,), dtype=np.float32),
+		# }),config)
+		# self.loss_fn = torch.nn.TripletMarginLoss()
+		# self.optimizer = torch.optim.Adam(self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
+		# # self.siamese_model.to(self.siamese_config.get("device", "cpu"))
+		# ############
 		
 		def add_view_requirements(w):
 			for policy in w.policy_map.values():
@@ -186,13 +184,12 @@ class XADQN(DQN):
 		self.workers.foreach_worker(add_view_requirements)
 
 	def format_transition_for_siamese_input(self, x):
+		embedding_size = self.siamese_config.get('embedding_size',64)
 		return {
-			f"fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}": {
-				's_t': x[CUR_OBS],
-				's_(t+1)': x[NEXT_OBS],
-				'a_t': x[ACTIONS],
-				'r_t': x[REWARDS],
-			}
+			f"s_t": x[CUR_OBS],
+			f"s_(t+1)": x[NEXT_OBS],
+			f"a_t": x[ACTIONS],
+			f"r_t": x[REWARDS],
 		}
 		
 	@override(DQN)
