@@ -167,9 +167,9 @@ class XADQN(DQN):
 				's_t': tmp_env.observation_space,
 				's_(t+1)': tmp_env.observation_space,
 				'a_t': tmp_env.action_space,
-				'r_t': gym.spaces.Box(low= float('-inf'), high= float('inf'), shape= 1, dtype=np.float32),
+				'r_t': gym.spaces.Box(low= float('-inf'), high= float('inf'), shape= (1,), dtype=np.float32),
 			})
-		}))
+		}),config)
 		self.loss_fn = nn.TripletMarginLoss()
 		self.optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-10)
 		self.siamese_model.to(self.siamese_config.get("device", "cpu"))

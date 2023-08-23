@@ -20,8 +20,16 @@ def get_input_recursively(_obs_space, valid_key_fn=lambda x: True):
 		return list(itertools.chain.from_iterable(map(get_input_recursively,_obs_space)))
 	return [_obs_space]
 
+class Permute(nn.Module):
+    def __init__(self, dims):
+        super(Permute, self).__init__()
+        self.dims = dims
+
+    def forward(self, x):
+        return x.permute(self.dims)
+
 class AdaptiveModel(nn.Module):
-	def __init__(self, obs_space, config, **args):
+	def __init__(self, obs_space, config):
 		super().__init__()
 		if hasattr(obs_space, 'original_space'):
 			obs_space = obs_space.original_space
@@ -149,13 +157,16 @@ class AdaptiveModel(nn.Module):
 
 	@staticmethod
 	def cnn_head_build(_key,_input_list):
+		_splitted_units = _key.split('-')
+		_units = int(_splitted_units[-1]) if len(_splitted_units) > 1 else 0
 		return [
 			nn.Sequential(
-				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, stride=4),
+				Permute((0, 3, 1, 2)),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=9, stride=4, padding=4),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=32 , out_channels=64, kernel_size=4, stride=2),
+				nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=2, padding=2),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=64 , out_channels=64, kernel_size=4, stride=1),
+				nn.Conv2d(in_channels=64 , out_channels=64, kernel_size=3, stride=1, padding=1),
 				nn.ReLU(),
 				nn.Flatten(),
 			)
