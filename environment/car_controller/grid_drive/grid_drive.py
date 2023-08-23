@@ -119,7 +119,9 @@ class GridDrive(gym.Env):
 		self.grid_view[old_x][old_y][self.AGENT_CELL_GRID_IDX] = 0 # remove old position
 		self.grid_view[new_x][new_y][self.AGENT_CELL_GRID_IDX] = 1 # set new position
 		self.grid_view[new_x][new_y][self.VISITED_CELL_GRID_IDX] = 1 # set current cell as visited
-		info_dict = {'explanation': explanatory_labels}
+		info_dict = {'explanation': {
+			'why': explanatory_labels,
+		}}
 		out_of_time = self.step_counter >= self.MAX_STEP
 		terminated_episode = dead or out_of_time
 		if terminated_episode: # populate statistics
