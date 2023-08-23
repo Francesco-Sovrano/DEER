@@ -7,13 +7,16 @@ import shutil
 import ray
 import time
 from deer.utils.workflow import train
+from ray.tune.registry import get_trainable_cls, _global_registry, ENV_CREATOR
+from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 import copy
 
 from deer.agents.xadqn import XADQN, XADQNConfig
 from environment import *
 
-SELECT_ENV = "GridDrive-Easy"
+SELECTED_ENV = "GridDrive-Easy"
 EXPERIENCE_BUFFER_SIZE = 2**14
+CENTRALISED_TRAINING = True
 
 default_options = {
 	"framework": "torch",
@@ -117,6 +120,46 @@ CONFIG = copy_dict_and_update(CONFIG, xa_default_options)
 CONFIG = copy_dict_and_update(CONFIG, algorithm_options)
 CONFIG["callbacks"] = CustomEnvironmentCallbacks
 
+# Setup MARL training strategy: centralised or decentralised
+env = _global_registry.get(ENV_CREATOR, SELECTED_ENV)(CONFIG.get("env_config",{}))
+obs_space = env.observation_space
+act_space = env.action_space
+if not CENTRALISED_TRAINING:
+	policy_graphs = {
+		f'agent-{i}'
+		for i in range(number_of_agents)
+	}
+	policy_mapping_fn = lambda agent_id: f'agent-{agent_id}'
+else:
+	# policy_graphs = {DEFAULT_POLICY_ID: (None, obs_space, act_space, CONFIG)}
+	policy_graphs = {DEFAULT_POLICY_ID}
+	policy_mapping_fn = lambda agent_id: DEFAULT_POLICY_ID
+
+CONFIG["multiagent"] = {
+	"policies": policy_graphs,
+	"policy_mapping_fn": policy_mapping_fn,
+	# Optional list of policies to train, or None for all policies.
+	"policies_to_train": None,
+	# Optional function that can be used to enhance the local agent
+	# observations to include more state.
+	# See rllib/evaluation/observation_function.py for more info.
+	"observation_fn": None,
+	# When replay_mode=lockstep, RLlib will replay all the agent
+	# transitions at a particular timestep together in a batch. This allows
+	# the policy to implement differentiable shared computations between
+	# agents it controls at that timestep. When replay_mode=independent,
+	# transitions are replayed independently per policy.
+	"replay_mode": "independent", # XAER does not support "lockstep", yet
+	# Which metric to use as the "batch size" when building a
+	# MultiAgentBatch. The two supported values are:
+	# env_steps: Count each time the env is "stepped" (no matter how many
+	#   multi-agent actions are passed/how many multi-agent observations
+	#   have been returned in the previous step).
+	# agent_steps: Count each individual agent step as one step.
+	# "count_steps_by": "agent_steps", # XAER does not support "env_steps"?
+}
+print('Config:', CONFIG)
+
 # Register models
 from ray.rllib.models import ModelCatalog
 from deer.models import get_model_catalog_dict
@@ -129,4 +172,4 @@ for k,v in get_model_catalog_dict('dqn', CONFIG.get("framework",'tf')).items():
 ray.shutdown()
 ray.init(ignore_reinit_error=True)
 
-train(XADQN, XADQNConfig, CONFIG, SELECT_ENV, test_every_n_step=4e7, stop_training_after_n_step=4e7)
+train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV, test_every_n_step=4e7, stop_training_after_n_step=4e7)

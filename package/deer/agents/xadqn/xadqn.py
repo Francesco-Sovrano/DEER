@@ -226,37 +226,37 @@ class XADQN(DQN):
 			# Store new samples in replay buffer.
 			sub_batch_iter = assign_types(new_sample_batch, self.clustering_scheme, self.sample_batch_size, with_episode_type=self.config.clustering_options['cluster_with_episode_type'], training_step=self.local_replay_buffer.get_train_steps())
 
-			############
-			explanation_batch_dict = defaultdict(list)
-			for sub_batch in sub_batch_iter:
-				explanatory_label = sub_batch[SampleBatch.INFOS]['batch_type']
-				explanation_batch_dict[explanatory_label].append(sub_batch)
-				self.positive_buffer.add(sub_batch, explanatory_label)
+			# ############
+			# explanation_batch_dict = defaultdict(list)
+			# for sub_batch in sub_batch_iter:
+			# 	explanatory_label = sub_batch[SampleBatch.INFOS]['batch_type']
+			# 	explanation_batch_dict[explanatory_label].append(sub_batch)
+			# 	self.positive_buffer.add(sub_batch, explanatory_label)
 
 
-			anchor_class,negative_class = random.sample(list(explanation_batch_dict.keys()),2)
-			self.triplet_buffer['anchor'].append(random.choice(explanation_batch_dict[anchor_class]))
-			self.triplet_buffer['positive'].append(random.choice(self.positive_buffer.batches[anchor_class]))
-			self.triplet_buffer['negative'].append(random.choice(explanation_batch_dict[negative_class]))
-			############
+			# anchor_class,negative_class = random.sample(list(explanation_batch_dict.keys()),2)
+			# self.triplet_buffer['anchor'].append(random.choice(explanation_batch_dict[anchor_class]))
+			# self.triplet_buffer['positive'].append(random.choice(self.positive_buffer.batches[anchor_class]))
+			# self.triplet_buffer['negative'].append(random.choice(explanation_batch_dict[negative_class]))
+			# ############
 
 			total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
-		############
-		self.siamese_model.train()
-		self.optimizer.zero_grad()  # Clear gradients
+		# ############
+		# self.siamese_model.train()
+		# self.optimizer.zero_grad()  # Clear gradients
 
-		anchor = self.triplet_buffer['anchor']
-		positive = self.triplet_buffer['positive']
-		negative = self.triplet_buffer['negative']
-		out_a = self.siamese_model(anchor)  # Forward pass
-		out_p = self.siamese_model(positive)  # Forward pass
-		out_n = self.siamese_model(negative)  # Forward pass
+		# anchor = self.triplet_buffer['anchor']
+		# positive = self.triplet_buffer['positive']
+		# negative = self.triplet_buffer['negative']
+		# out_a = self.siamese_model(anchor)  # Forward pass
+		# out_p = self.siamese_model(positive)  # Forward pass
+		# out_n = self.siamese_model(negative)  # Forward pass
 
-		loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
-		loss.backward()  # Backward pass (compute gradients)
-		self.optimizer.step()  # Update parameters
-		############
+		# loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
+		# loss.backward()  # Backward pass (compute gradients)
+		# self.optimizer.step()  # Update parameters
+		# ############
 
 		global_vars = {
 			"timestep": self._counters[NUM_ENV_STEPS_SAMPLED],
