@@ -14,6 +14,6 @@ pip install -e ./package # cmake is needed
 pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.13.1+cpu.html
 
 # echo 'Fixing environment rendering'
-# pip install pyglet==1.5.11 # fix for rendering environment
+pip install pyglet==1.5.11 # fix for rendering environment
 # echo 'Fixing protobuf'
 # pip install protobuf==3.20.* # https://github.com/protocolbuffers/protobuf/issues/10051

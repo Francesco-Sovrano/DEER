@@ -10,6 +10,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
 from matplotlib.lines import Line2D
+from PIL import Image
 
 from environment.car_controller.utils import *
 from environment.car_controller.graph_drive.lib.roads import *
@@ -424,12 +425,17 @@ class GraphDrive(gym.Env):
 		img = self.get_screen()
 		if mode == 'rgb_array':
 			return img
+		# elif mode == 'human':
+		# 	from gym.envs.classic_control import rendering
+		# 	if self.viewer is None:
+		# 		self.viewer = rendering.SimpleImageViewer()
+		# 	self.viewer.imshow(img)
+		# 	return self.viewer.isopen
 		elif mode == 'human':
-			from gym.envs.classic_control import rendering
-			if self.viewer is None:
-				self.viewer = rendering.SimpleImageViewer()
-			self.viewer.imshow(img)
-			return self.viewer.isopen
+			viewer = Image.fromarray(img)
+			viewer.show()
+			viewer.close()
+			return True
 
 	def frequent_reward_default(self, visiting_new_road, old_goal_junction, old_car_point): # BAD
 		def null_reward(is_terminal, label):

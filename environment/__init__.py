@@ -3,9 +3,6 @@ from ray.tune.registry import register_env
 
 from environment.custom_metrics import CustomEnvironmentCallbacks
 
-from environment.gym_env_example import Example_v0
-register_env("ToyExample-V0", lambda config: Example_v0(config))
-
 ### CescoDrive
 from environment.car_controller.cesco_drive.cesco_drive_v0 import CescoDriveV0
 register_env("CescoDrive-V0", lambda config: CescoDriveV0(config))

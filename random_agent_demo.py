@@ -2,7 +2,7 @@ import gym
 import time
 from environment import *
 
-env = GraphDrive({"reward_fn": 'frequent_reward_v1', "culture_level": "Hard"})
+env = GraphDrive({"reward_fn": 'frequent_reward_explanation_engineering_v1', "culture_level": "Hard"})
 # env = CescoDriveV0()
 
 def run_one_episode (env):
