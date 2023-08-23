@@ -163,7 +163,7 @@ class XADQN(DQN):
 		tmp_env = env_creator(config["env_config"])
 
 		self.siamese_model = AdaptiveModel(gym.spaces.Dict({
-			f'fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}': gym.spaces.Dict({
+			f"fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}": gym.spaces.Dict({
 				's_t': tmp_env.observation_space,
 				's_(t+1)': tmp_env.observation_space,
 				'a_t': tmp_env.action_space,
@@ -187,7 +187,7 @@ class XADQN(DQN):
 
 	def format_transition_for_siamese_input(self, x):
 		return {
-			f'fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}': {
+			f"fc_siamesejoint-{self.siamese_config.get('embedding_size',64)}": {
 				's_t': x[CUR_OBS],
 				's_(t+1)': x[NEXT_OBS],
 				'a_t': x[ACTIONS],

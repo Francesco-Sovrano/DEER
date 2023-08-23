@@ -21,7 +21,7 @@ def get_input_recursively(_obs_space, valid_key_fn=lambda x: True):
 	return [_obs_space]
 
 class AdaptiveModel(nn.Module):
-	def __init__(self, obs_space, **args):
+	def __init__(self, obs_space, config, **args):
 		super().__init__()
 		if hasattr(obs_space, 'original_space'):
 			obs_space = obs_space.original_space
@@ -151,11 +151,11 @@ class AdaptiveModel(nn.Module):
 	def cnn_head_build(_key,_input_list):
 		return [
 			nn.Sequential(
-				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, strides=4, padding='same'),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, stride=4),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=32 , out_channels=64, kernel_size=4, strides=2, padding='same'),
+				nn.Conv2d(in_channels=32 , out_channels=64, kernel_size=4, stride=2),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=64 , out_channels=64, kernel_size=4, strides=1, padding='same'),
+				nn.Conv2d(in_channels=64 , out_channels=64, kernel_size=4, stride=1),
 				nn.ReLU(),
 				nn.Flatten(),
 			)
