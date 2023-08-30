@@ -29,15 +29,11 @@ from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
 from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, get_clustered_replay_buffer, assign_types, add_buffer_metrics
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
-from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature, torch
-from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
-
-from deer.experience_buffers.buffer.buffer import Buffer
-from collections import defaultdict, deque
+from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
 
 import random
 import numpy as np
-import gym
+
 
 class PolicySignatureListCollector(SimpleListCollector):
 	def get_inference_input_dict(self, policy_id):
@@ -45,13 +41,14 @@ class PolicySignatureListCollector(SimpleListCollector):
 		policy = self.policy_map[policy_id]
 		return add_policy_signature(batch,policy)
 
+
 def init_xa_config(self):
 	self.num_steps_sampled_before_learning_starts = 2**14
 	self.min_train_timesteps_per_iteration = 1
 	self.buffer_options = {
 		'prioritized_replay': True,
 		#### MARL
-		'centralised_buffer': True, # for MARL
+		'centralised_buffer': True,  # for MARL
 		'replay_integral_multi_agent_batches': False, # for MARL, set this to True for MADDPG and QMIX
 		'batch_dropout_rate': 0, # Probability of dropping a state transition before adding it to the experience buffer. Set this to any value greater than zero to randomly drop state transitions
 		#### ER
@@ -100,7 +97,8 @@ def init_xa_config(self):
 		'collect_cluster_metrics': False, # Whether to collect metrics about the experience clusters. It consumes more resources.
 		'ratio_of_samples_from_unclustered_buffer': 0, # 0 for no, 1 for full. Whether to sample in a randomised fashion from both a non-prioritised buffer of most recent elements and the XA prioritised buffer.
 	}
-	
+
+
 class XADQNConfig(DQNConfig):
 
 	def __init__(self, algo_class=None):
@@ -122,10 +120,15 @@ class XADQNConfig(DQNConfig):
 # XADQN Execution Plan
 ########################
 
+
 class XADQN(DQN):
 	def __init__(self, *args, **kwargs):
 		self._allow_unknown_subkeys += ["clustering_options"]
+		self.sample_batch_size = None
+		self.replay_batch_size = None
+		self.clustering_scheme = None
 		super().__init__(*args, **kwargs)
+
 
 	@classmethod
 	@override(DQN)
@@ -146,7 +149,8 @@ class XADQN(DQN):
 		self.replay_batch_size = self.config.train_batch_size
 		self.sample_batch_size = self.config.n_step
 		if self.sample_batch_size and self.sample_batch_size > 1:
-			self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
+			self.replay_batch_size = int(max(
+				1, self.replay_batch_size // self.sample_batch_size))
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
 
 		# ############
@@ -344,9 +348,9 @@ class XADQN(DQN):
 				with self._timers[SYNCH_WORKER_WEIGHTS_TIMER]:
 					self.workers.sync_weights(global_vars=global_vars)
 
-		## Add buffer metrics
+		# Add buffer metrics
 		if self.config.clustering_options['collect_cluster_metrics']:
-			add_buffer_metrics(train_results,self.local_replay_buffer)
+			add_buffer_metrics(train_results, self.local_replay_buffer)
 
 		# Return all collected metrics for the iteration.
 		return train_results
