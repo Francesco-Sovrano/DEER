@@ -4,23 +4,25 @@ import logging
 import numpy as np
 import gym
 import torch_geometric
-from torch_geometric.transforms import BaseTransform
 
 logger = logging.getLogger(__name__)
 torch, nn = try_import_torch()
 
 two_pi = 2*np.pi
 pi = np.pi
-		
-def rotate(x,y,theta=0):
+
+
+def rotate(x, y, theta=0):
 	sin_theta = np.sin(theta)
 	cos_theta = np.cos(theta)
-	return (x*cos_theta-y*sin_theta, x*sin_theta+y*cos_theta)
+	return x*cos_theta-y*sin_theta, x*sin_theta+y*cos_theta
 
-def shift_and_rotate(xv,yv,dx,dy,theta=0):
-	return rotate(xv+dx,yv+dy,theta)
 
-class RelativePosition(BaseTransform):
+def shift_and_rotate(xv, yv, dx, dy, theta=0):
+	return rotate(xv+dx, yv+dy, theta)
+
+
+class RelativePosition:
 	def __init__(self):
 		pass
 
@@ -30,8 +32,8 @@ class RelativePosition(BaseTransform):
 		xy = pos[row] - pos[col]
 		sin_theta = torch.sin(-deg[col])
 		cos_theta = torch.cos(-deg[col])
-		x = xy[:,0][:,None]
-		y = xy[:,1][:,None]
+		x = xy[:, 0][:, None]
+		y = xy[:, 1][:, None]
 		relative_xy = torch.cat(
 			[
 				x*cos_theta-y*sin_theta,
@@ -52,7 +54,8 @@ class RelativePosition(BaseTransform):
 	def __repr__(self) -> str:
 		return self.__class__.__name__
 
-class RelativeOrientation(BaseTransform):
+
+class RelativeOrientation:
 	def __init__(self, norm=False):
 		self.norm = norm
 
@@ -66,7 +69,8 @@ class RelativeOrientation(BaseTransform):
 
 		if pseudo is not None:
 			pseudo = pseudo.view(-1, 1) if pseudo.dim() == 1 else pseudo
-			data.edge_attr = torch.cat([pseudo, relative_orientation.type_as(pseudo)], dim=-1)
+			data.edge_attr = torch.cat(
+				[pseudo, relative_orientation.type_as(pseudo)], dim=-1)
 		else:
 			data.edge_attr = relative_orientation
 
@@ -74,6 +78,7 @@ class RelativeOrientation(BaseTransform):
 
 	def __repr__(self) -> str:
 		return self.__class__.__name__
+
 
 class CommAdaptiveModel(AdaptiveModel):
 	def __init__(self, obs_space, config):
@@ -83,8 +88,7 @@ class CommAdaptiveModel(AdaptiveModel):
 		super().__init__(obs_space['all_agents_relative_features_list'][0], config)
 		self.obs_space = obs_space
 
-		#################
-		###### GNN ######
+		# GNN
 		agent_features_size = self.get_agent_features_size()
 		logger.warning(f"Agent features size: {agent_features_size}")
 		self.n_agents = obs_space['all_agents_absolute_position_vector'].shape[0]
@@ -141,7 +145,7 @@ class CommAdaptiveModel(AdaptiveModel):
 		device = all_agents_positions.device
 		batch_size = all_agents_positions.shape[0]
 
-		## build graphs
+		# build graphs
 		graphs = torch_geometric.data.Batch()
 		graphs.batch = torch.repeat_interleave(
 			torch.arange(batch_size), 
@@ -160,7 +164,7 @@ class CommAdaptiveModel(AdaptiveModel):
 		graphs = RelativePosition()(graphs) # Saves the relative positions of linked nodes in its edge attributes
 		graphs = RelativeOrientation(norm=True)(graphs) # Saves the relative orientations in its edge attributes
 
-		## process graphs
+		# process graphs
 		gnn_output = self.gnn(graphs.x, graphs.edge_index, edge_attr=graphs.edge_attr)
 		# assert not gnn_output.isnan().any()
 		gnn_output = gnn_output.view(-1, self.n_agents_and_leaders, self.message_size) # reshape GNN outputs
@@ -169,7 +173,7 @@ class CommAdaptiveModel(AdaptiveModel):
 		# message_from_others = torch.sum(gnn_output*this_agent_id_mask, dim=1)
 		message_from_others = torch.squeeze(torch.take_along_dim(gnn_output,this_agent_id,dim=1),dim=1)
 
-		## build output
+		# build output
 		# output = message_from_others
 		output = torch.cat([main_output, message_from_others], dim=1)
 		# output = self.post_proc(output)
