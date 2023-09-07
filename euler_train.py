@@ -235,7 +235,7 @@ def run_experiments(args):
 
 def main():
     euler_res = "/cluster/project/jbuhmann/workspace/deer/results/"
-    parser = argparse.ArgumentParser(description="Multiscaling experiments")
+    parser = argparse.ArgumentParser(description="Deer experiments")
     parser.add_argument("--results_dir", type=Path, default=Path(euler_res),
                         help="Path in which results of training are/will be "
                              "located")
