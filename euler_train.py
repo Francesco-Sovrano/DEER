@@ -278,7 +278,7 @@ def main():
     parser.add_argument("--eval_freq", type=int, default=1000000)
     parser.add_argument("--anim_freq", type=int, default=None)
     parser.add_argument("--episode_max_length", type=int, default=15000)
-    parser.add_argument("--total_n_steps", type=int, default=4e7)
+    parser.add_argument("--total_n_steps", type=int, default=40000000)
     parser.add_argument("--env", type=str, default='GridDrive-Easy')
 
     parser.add_argument("--algo", type=str, default='dqnar',
