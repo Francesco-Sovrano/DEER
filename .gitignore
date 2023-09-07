@@ -7,6 +7,7 @@ Atari-ROM/
 out/
 tmp/
 results/
+results_dir/
 #experiments/
 
 # Byte-compiled / optimized / DLL files
