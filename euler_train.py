@@ -185,7 +185,7 @@ def submit_jobs(args):
         seed = seeds[i]
 
         time = datetime.now().strftime('%H%M%S%f')
-        run_id = f"multiscaling_{args.run_id}_{i}_seed_{seed}_{time}"
+        run_id = f"deer_{args.run_id}_{i}_seed_{seed}_{time}"
         print(f"Run {run_id} with seed: {seed}")
         euler_slurm = (f"sbatch --mem-per-cpu={args.memory} "
                        f"-n {args.cpus} "
