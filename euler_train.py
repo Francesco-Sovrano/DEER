@@ -152,7 +152,8 @@ def run_training(args):
         ModelCatalog.register_custom_model(k, v)
 
     ray.shutdown()
-    ray.init(ignore_reinit_error=True)
+    ray.init(ignore_reinit_error=True, num_cpus=args.cpus,
+             include_dashboard=False)
     train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV, test_every_n_step=4e7,
           stop_training_after_n_step=4e7)
 
