@@ -154,8 +154,9 @@ def run_training(args):
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus,
              include_dashboard=False)
-    train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV, test_every_n_step=4e7,
-          stop_training_after_n_step=4e7)
+    train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV,
+          test_every_n_step=args.eval_freq,
+          stop_training_after_n_step=args.total_n_steps)
 
 
 def submit_jobs(args):
@@ -274,11 +275,12 @@ def main():
     parser.add_argument("--render_mode",
                         type=str, default='rgb_array',
                         help="rendering the environment")
-    parser.add_argument("--eval_freq", type=int, default=50000)
+    parser.add_argument("--eval_freq", type=int, default=1000000)
     parser.add_argument("--anim_freq", type=int, default=None)
     parser.add_argument("--episode_max_length", type=int, default=15000)
-    parser.add_argument("--max_episodes", type=int, default=200000)
+    parser.add_argument("--total_n_steps", type=int, default=4e7)
     parser.add_argument("--env", type=str, default='GridDrive-Easy')
+
     parser.add_argument("--algo", type=str, default='dqnar',
                         help='sqn, ppo, dqnar, ppoar, qlearning or sarsa')
 
