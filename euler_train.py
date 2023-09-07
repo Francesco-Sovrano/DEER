@@ -188,6 +188,7 @@ def submit_jobs(args):
         run_id = f"multiscaling_{args.run_id}_{i}_seed_{seed}_{time}"
         print(f"Run {run_id} with seed: {seed}")
         euler_slurm = (f"sbatch --mem-per-cpu={args.memory} "
+                       f"-n {args.cpus} "
                        f"{'--gpus=1 ' if not args.no_gpu else ''}"
                        f"{'--gpus=rtx_3090:1 ' if not args.any_gpu else ''}"
                        f"-J {run_id} "
@@ -294,6 +295,7 @@ def main():
     parser.add_argument('--no_gpu', default=False, required=False,
                         action='store_true',
                         help='Do not request any gpus.')
+    parser.add_argument('--cpus', default=1, required=False, type=int)
     parser.add_argument("--batch_system",
                         type=str,
                         default='slurm',
