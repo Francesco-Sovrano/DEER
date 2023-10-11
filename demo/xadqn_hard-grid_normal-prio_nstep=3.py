@@ -6,20 +6,24 @@ import json
 import shutil
 import ray
 import time
-from deer.utils.workflow import train
+import copy
 from ray.tune.registry import get_trainable_cls, _global_registry, ENV_CREATOR
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
-import copy
-
+from deer.utils.workflow import train
 from deer.agents.xadqn import XADQN, XADQNConfig
+
+# Import environments
+import sys
+sys.path.append(".")  # Adds the parent directory to the system path.
+sys.path.append("..")  # Adds the parent directory to the system path.
 from environment import *
 
-SELECTED_ENV = "GridDrive-Easy"
+SELECTED_ENV = "GridDrive-Hard"
 EXPERIENCE_BUFFER_SIZE = 2**14
 CENTRALISED_TRAINING = True
 
 default_options = {
-	"framework": "torch",
+	"framework": "tf",
 	"model": {
 		"custom_model": "adaptive_multihead_network",
 		# "custom_model_config": {
@@ -42,23 +46,25 @@ default_options = {
 	# 	# When replay_mode=lockstep, RLlib will replay all the agent transitions at a particular timestep together in a batch. This allows the policy to implement differentiable shared computations between agents it controls at that timestep. When replay_mode=independent, transitions are replayed independently per policy.
 	# 	"replay_mode": "independent", # XAER does not support "lockstep", yet
 	# 	# Which metric to use as the "batch size" when building a MultiAgentBatch. The two supported values are: env_steps: Count each time the env is "stepped" (no matter how many multi-agent actions are passed/how many multi-agent observations have been returned in the previous step), agent_steps: Count each individual agent step as one step.
-	# 	"count_steps_by": "env_steps", # XAER does not support "env_steps"?
 	# },
 	# "batch_dropout_rate": 0.5, # Probability of dropping a state transition before adding it to the experience buffer. Set this to any value greater than zero to randomly drop state transitions
 	###########################
-	"batch_mode": "complete_episodes", # For some clustering schemes (e.g. extrinsic_reward, moving_best_extrinsic_reward, etc..) it has to be equal to 'complete_episodes', otherwise it can also be 'truncate_episodes'.
+	"batch_mode": "truncate_episodes", # For some clustering schemes (e.g. extrinsic_reward, moving_best_extrinsic_reward, etc..) it has to be equal to 'complete_episodes', otherwise it can also be 'truncate_episodes'.
 	# "rollout_fragment_length": 2**10, # Divide episodes into fragments of this many steps each during rollouts. Default is 1.
 	"train_batch_size": 2**8, # Number of 'n_step' transitions per train-batch. Default is: 100 for TD3, 256 for SAC and DDPG, 32 for SAC, 500 for APPO.
 	###########################
 	"min_train_timesteps_per_iteration": 1,
+	"num_steps_sampled_before_learning_starts": 2**8, # How many steps of the model to sample before learning starts.
+	"count_steps_by": "agent_steps", # XAER does not support "env_steps"?
 }
 algorithm_options = {
 	"grad_clip": None, # no need of gradient clipping with huber loss
-	"dueling": True,
-	"double_q": True,
-	"num_atoms": 21,
-	"v_max": 2**5,
-	"v_min": -1,
+	# "dueling": True,
+	# "double_q": True,
+	# "num_atoms": 21,
+	# "v_max": 2**5,
+	# "v_min": -1,
+	"n_step": 3,
 }
 xa_default_options = {
 	##############################
@@ -87,17 +93,18 @@ xa_default_options = {
 		'max_age_window': None, # Consider only batches with a relative age within this age window, the younger is a batch the higher will be its importance. Set to None for no age weighting. # Idea from: Fedus, William, et al. "Revisiting fundamentals of experience replay." International Conference on Machine Learning. PMLR, 2020.
 	},
 	"clustering_options": {
-		'clustering_scheme': [
-			'Why',
-			# 'Who',
-			'How_Well',
-			# 'How_Fair',
-			# 'Where',
-			# 'What',
-			# 'How_Many'
-			# 'UWho',
-			# 'UWhich_CoopStrategy',
-		],
+		'clustering_scheme': None,
+		# 'clustering_scheme': [
+		# 	'Why',
+		# 	# 'Who',
+		# 	'How_Well',
+		# 	# 'How_Fair',
+		# 	# 'Where',
+		# 	# 'What',
+		# 	# 'How_Many'
+		# 	# 'UWho',
+		# 	# 'UWhich_CoopStrategy',
+		# ],
 		"clustering_scheme_options": {
 			"n_clusters": {
 				"who": 4,

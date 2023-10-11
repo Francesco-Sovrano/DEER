@@ -34,8 +34,8 @@ class TFAdaptiveMultiHeadDQN:
 
 			def variables(self, as_dict=False):
 				if not as_dict:
-					return self.preprocessing_model.variables(as_dict) + super().variables(as_dict)
-				v = self.preprocessing_model.variables(as_dict)
+					return self.preprocessing_model.weights + super().variables(as_dict)
+				v = {var.name: var for var in self.preprocessing_model.weights}
 				v.update(super().variables(as_dict))
 				return v
 
