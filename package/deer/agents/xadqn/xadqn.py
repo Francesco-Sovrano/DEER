@@ -31,6 +31,12 @@ from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, g
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
 from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
 
+from deer.experience_buffers.buffer.buffer import Buffer
+from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
+import gym
+from ray.rllib.utils.framework import try_import_torch
+from collections import deque
+torch, nn = try_import_torch()
 import random
 import numpy as np
 
@@ -127,6 +133,12 @@ class XADQN(DQN):
 		self.sample_batch_size = None
 		self.replay_batch_size = None
 		self.clustering_scheme = None
+		self.siamese_model = None
+		self.positive_buffer = None
+		self.triplet_buffer = None
+		self.siamese_config = None
+		self.optimizer = None
+		self.loss_fn = None
 		super().__init__(*args, **kwargs)
 
 
@@ -154,27 +166,32 @@ class XADQN(DQN):
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
 
 		# ############
-		# self.siamese_config = config.get("siamese_config",{})
-
+		# self.siamese_config = config.get("siamese_config", {})
+		#
 		# self.positive_buffer = Buffer(global_size=10000, seed=42)
 		# self.triplet_buffer = {
-		# 	'anchor': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
-		# 	'positive': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
-		# 	'negative': deque(maxlen=self.siamese_config.get('buffer_size',1000)),
+		# 	'anchor': deque(maxlen=self.siamese_config.get(
+		# 		'buffer_size', 1000)),
+		# 	'positive': deque(maxlen=self.siamese_config.get(
+		# 		'buffer_size', 1000)),
+		# 	'negative': deque(maxlen=self.siamese_config.get(
+		# 		'buffer_size', 1000)),
 		# }
-
+		#
 		# _, env_creator = self._get_env_id_and_creator(config.env, config)
 		# tmp_env = env_creator(config["env_config"])
-		# embedding_size = self.siamese_config.get('embedding_size',64)
+		# embedding_size = self.siamese_config.get('embedding_size', 64)
 		# self.siamese_model = AdaptiveModel(gym.spaces.Dict({
 		# 	f"s_t": tmp_env.observation_space,
 		# 	f"s_(t+1)": tmp_env.observation_space,
 		# 	f"a_t": tmp_env.action_space,
-		# 	f"r_t": gym.spaces.Box(low= float('-inf'), high= float('inf'), shape= (1,), dtype=np.float32),
-		# }),config)
+		# 	f"r_t": gym.spaces.Box(
+		# 		low=float('-inf'), high=float('inf'),
+		# 		shape=(1,), dtype=np.float32), }), config)
 		# self.loss_fn = torch.nn.TripletMarginLoss()
-		# self.optimizer = torch.optim.Adam(self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
-		# # self.siamese_model.to(self.siamese_config.get("device", "cpu"))
+		# self.optimizer = torch.optim.Adam(
+		# 	self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
+		# self.siamese_model.to(self.siamese_config.get("device", "cpu"))
 		# ############
 		
 		def add_view_requirements(w):
@@ -228,7 +245,11 @@ class XADQN(DQN):
 			self._counters[NUM_ENV_STEPS_SAMPLED] += new_sample_batch.env_steps()
 
 			# Store new samples in replay buffer.
-			sub_batch_iter = assign_types(new_sample_batch, self.clustering_scheme, self.sample_batch_size, with_episode_type=self.config.clustering_options['cluster_with_episode_type'], training_step=self.local_replay_buffer.get_train_steps())
+			sub_batch_iter = assign_types(
+				new_sample_batch, self.clustering_scheme,
+				self.sample_batch_size,
+				with_episode_type=self.config.clustering_options['cluster_with_episode_type'],
+				training_step=self.local_replay_buffer.get_train_steps())
 
 			# ############
 			# explanation_batch_dict = defaultdict(list)
@@ -244,7 +265,8 @@ class XADQN(DQN):
 			# self.triplet_buffer['negative'].append(random.choice(explanation_batch_dict[negative_class]))
 			# ############
 
-			total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
+			total_buffer_additions = sum(map(
+				self.local_replay_buffer.add_batch, sub_batch_iter))
 
 		# ############
 		# self.siamese_model.train()
@@ -289,7 +311,7 @@ class XADQN(DQN):
 				if self.sample_batch_size > 1 and self.config.batch_mode == "complete_episodes":
 					sub_batch_indexes = [
 						i
-						for i,infos in enumerate(batch['infos'])
+						for i, infos in enumerate(batch['infos'])
 						if "batch_uid" in infos
 					] + [batch.count]
 					sub_batch_iter = (
@@ -299,7 +321,7 @@ class XADQN(DQN):
 				else:
 					sub_batch_iter = batch.timeslices(self.sample_batch_size)
 				sub_batch_iter = unique_everseen(sub_batch_iter, key=get_batch_uid)
-				for i,sub_batch in enumerate(sub_batch_iter):
+				for i, sub_batch in enumerate(sub_batch_iter):
 					if i >= len(policy_batch_list):
 						policy_batch_list.append({})
 					policy_batch_list[i][policy_id] = sub_batch

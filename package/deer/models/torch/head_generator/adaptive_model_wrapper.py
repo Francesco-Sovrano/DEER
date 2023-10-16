@@ -7,6 +7,7 @@ import itertools
 logger = logging.getLogger(__name__)
 torch, nn = try_import_torch()
 
+
 def get_input_recursively(_obs_space, valid_key_fn=lambda x: True):
 	if isinstance(_obs_space, gym.spaces.Dict):
 		space_iter = (v for k,v in _obs_space.spaces.items() if valid_key_fn(k))
@@ -20,13 +21,16 @@ def get_input_recursively(_obs_space, valid_key_fn=lambda x: True):
 		return list(itertools.chain.from_iterable(map(get_input_recursively,_obs_space)))
 	return [_obs_space]
 
-class Permute(nn.Module):
-    def __init__(self, dims):
-        super(Permute, self).__init__()
-        self.dims = dims
 
-    def forward(self, x):
-        return x.permute(self.dims)
+class Permute(nn.Module):
+
+	def __init__(self, dims):
+		super(Permute, self).__init__()
+		self.dims = dims
+
+	def forward(self, x):
+		return x.permute(self.dims)
+
 
 class AdaptiveModel(nn.Module):
 	def __init__(self, obs_space, config):
@@ -51,8 +55,8 @@ class AdaptiveModel(nn.Module):
 		cnn_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'cnn')
 		if cnn_inputs_shape_dict:
 			self.sub_model_dict['cnn'] = [
-				self.cnn_head_build(_key,_input_list)
-				for (_key,_),_input_list in cnn_inputs_shape_dict.items()
+				self.cnn_head_build(_key, _input_list)
+				for (_key, _), _input_list in cnn_inputs_shape_dict.items()
 			]
 
 		###### Others

@@ -23,6 +23,7 @@ from ray.util.timer import _Timer as TimerStat
 
 logger = logging.getLogger(__name__)
 
+
 def get_clustered_replay_buffer(config):
 	assert config.batch_mode == "complete_episodes" or not config.clustering_options["cluster_with_episode_type"], f"This algorithm requires 'complete_episodes' as batch_mode when 'cluster_with_episode_type' is True"
 	clustering_scheme_type = config.clustering_options.get("clustering_scheme", None)
@@ -38,7 +39,9 @@ def get_clustered_replay_buffer(config):
 	clustering_scheme = ClusterManager(clustering_scheme_type, config.clustering_options["clustering_scheme_options"])
 	return local_replay_buffer, clustering_scheme
 
-def assign_types(multi_batch, clustering_scheme, batch_fragment_length, with_episode_type=True, training_step=None):
+
+def assign_types(multi_batch, clustering_scheme, batch_fragment_length,
+				 with_episode_type=True, training_step=None):
 	if not isinstance(multi_batch, MultiAgentBatch):
 		multi_batch = MultiAgentBatch({DEFAULT_POLICY_ID: multi_batch}, multi_batch.count)
 	
@@ -50,7 +53,7 @@ def assign_types(multi_batch, clustering_scheme, batch_fragment_length, with_epi
 	# 	return batch_list
 
 	batch_dict = {}
-	for pid,meta_batch in multi_batch.policy_batches.items():
+	for pid, meta_batch in multi_batch.policy_batches.items():
 		batch_dict[pid] = []
 		batch_list = meta_batch.split_by_episode() if with_episode_type else [meta_batch]
 		for batch in batch_list:
@@ -81,9 +84,11 @@ def assign_types(multi_batch, clustering_scheme, batch_fragment_length, with_epi
 		for b_list in zip(*batch_dict.values())
 	]
 
+
 def add_buffer_metrics(results, buffer):
 	results['buffer']=buffer.stats()
 	return results
+
 
 def apply_to_batch_once(fn, batch_list):
 	updated_batch_dict = {
@@ -91,6 +96,7 @@ def apply_to_batch_once(fn, batch_list):
 		for x in unique_everseen(batch_list, key=get_batch_uid)
 	}
 	return list(map(lambda x: updated_batch_dict[get_batch_uid(x)], batch_list))
+
 
 class MultiAgentBatchWithDefaultAgent(MultiAgentBatch):
 
@@ -112,7 +118,6 @@ class MultiAgentBatchWithDefaultAgent(MultiAgentBatch):
 	# @property
 	# def count(self):
 	# 	return self.policy_batches[self._default_agent_id].count
-	
 
 	@staticmethod
 	def from_multi_agent_batch(b, agent_id=None):
@@ -127,6 +132,7 @@ class MultiAgentBatchWithDefaultAgent(MultiAgentBatch):
 
 	def to_sample_batch(self):
 		return self.policy_batches[self._default_agent_id]
+
 
 class SimpleReplayBuffer:
 	"""Simple replay buffer that operates over batches."""
@@ -161,6 +167,7 @@ class SimpleReplayBuffer:
 
 	def replay(self, batch_count=1):
 		return random.sample(self.replay_batches, batch_count)
+
 
 class LocalReplayBuffer(ParallelIteratorWorker):
 	"""A replay buffer shard.
