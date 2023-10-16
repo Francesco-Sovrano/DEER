@@ -43,17 +43,17 @@ class TFAdaptiveMultiHeadDDPG:
 
 			def policy_variables(self, as_dict=False):
 				if not as_dict:
-					return self.preprocessing_model_policy.variables(as_dict) + super().policy_variables(as_dict)
-				p_dict = super().policy_variables(as_dict)
-				p_dict.update(self.preprocessing_model_policy.variables(as_dict))
-				return p_dict
+					return self.preprocessing_model_policy.weights + super().policy_variables(as_dict)
+				v = {var.name: var for var in self.preprocessing_model_policy.weights}
+				v.update(super().policy_variables(as_dict))
+				return v
 
 			def q_variables(self, as_dict=False):
 				if not as_dict:
-					return self.preprocessing_model_q.variables(as_dict) + super().q_variables(as_dict)
-				q_dict = super().q_variables(as_dict)
-				q_dict.update(self.preprocessing_model_q.variables(as_dict))
-				return q_dict
+					return self.preprocessing_model_q.weights + super().q_variables(as_dict)
+				v = {var.name: var for var in self.preprocessing_model_q.weights}
+				v.update(super().q_variables(as_dict))
+				return v
 
 			def get_entropy_var(self):
 				return None

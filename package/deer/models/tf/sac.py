@@ -73,9 +73,9 @@ class TFAdaptiveMultiHeadNet:
 				return self._get_q_value(model_out, actions, self.twin_q_net)
 
 			def policy_variables(self):
-				return self.policy_preprocessing_model.variables() + super().policy_variables()
+				return self.policy_preprocessing_model.weights + super().policy_variables()
 
 			def q_variables(self):
-				return self.value_preprocessing_model.variables() + super().q_variables()
+				return self.value_preprocessing_model.weights + super().q_variables()
 
 		return TFAdaptiveMultiHeadNetInner

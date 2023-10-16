@@ -31,7 +31,7 @@ def get_clustered_replay_buffer(config):
 	ratio_of_samples_from_unclustered_buffer = config.clustering_options["ratio_of_samples_from_unclustered_buffer"] if clustering_scheme_type else 0
 	local_replay_buffer = LocalReplayBuffer(
 		config.buffer_options, 
-		learning_starts=config.num_steps_sampled_before_learning_starts,
+		# learning_starts=config.num_steps_sampled_before_learning_starts,
 		seed=config.seed,
 		cluster_selection_policy=config.clustering_options["cluster_selection_policy"],
 		ratio_of_samples_from_unclustered_buffer=ratio_of_samples_from_unclustered_buffer,
@@ -71,6 +71,8 @@ def assign_types(multi_batch, clustering_scheme, batch_fragment_length,
 					episode_step=i, 
 					agent_id=pid
 				)
+				if type(sub_batch["td_errors"])!=np.ndarray:
+					sub_batch["td_errors"] = sub_batch["td_errors"].numpy()
 				sub_batch[SampleBatch.INFOS] = [{'batch_type': batch_type,'training_step': training_step}] # remove unnecessary infos to save some memory
 			batch_dict[pid] += sub_batch_list
 	return [
@@ -149,8 +151,8 @@ class SimpleReplayBuffer:
 		random.seed(seed)
 		np.random.seed(seed)
 
-	def can_replay(self):
-		return len(self.replay_batches) >= self.num_slots
+	# def can_replay(self):
+	# 	return len(self.replay_batches) >= self.num_slots
 
 	def add_batch(self, sample_batch):
 		if discard_batch(sample_batch):
@@ -177,7 +179,7 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 
 	def __init__(self, 
 		buffer_options, 
-		learning_starts=1000,
+		# learning_starts=1000,
 		seed=None,
 		cluster_selection_policy='random_uniform',
 		ratio_of_samples_from_unclustered_buffer=0,
@@ -190,7 +192,7 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		dummy_buffer = PseudoPrioritizedBuffer(**self.buffer_options)
 		self.buffer_size = dummy_buffer.global_size
 		self.is_weighting_expected_values = dummy_buffer.is_weighting_expected_values()
-		self.replay_starts = learning_starts
+		# self.replay_starts = learning_starts
 		self.batch_dropout_rate = self.buffer_options.get('batch_dropout_rate', 0)
 		self._buffer_lock = ReadWriteLock()
 		self._cluster_selection_policy = cluster_selection_policy
@@ -275,8 +277,8 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		self.num_added += added_batches
 		return added_batches
 
-	def can_replay(self):
-		return self.num_added >= self.replay_starts
+	# def can_replay(self):
+	# 	return self.num_added >= self.replay_starts
 
 	def replay(self, batch_count=1, cluster_overview_size=None, update_replayed_fn=None):
 		output_batches = []
@@ -308,8 +310,8 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		return output_batches
 
 	def sample_from_buffer(self, buffer_dict, batch_count=1, cluster_overview_size=None, update_replayed_fn=None):
-		if not self.can_replay():
-			return []
+		# if not self.can_replay():
+		# 	return []
 		if not cluster_overview_size:
 			cluster_overview_size = batch_count
 		else:

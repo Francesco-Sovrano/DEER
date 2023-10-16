@@ -159,10 +159,10 @@ class XADQN(DQN):
 		super().setup(config)
 
 		self.replay_batch_size = self.config.train_batch_size
-		self.sample_batch_size = self.config.n_step
-		if self.sample_batch_size and self.sample_batch_size > 1:
-			self.replay_batch_size = int(max(
-				1, self.replay_batch_size // self.sample_batch_size))
+
+		self.sample_batch_size = 1
+		# if self.sample_batch_size and self.sample_batch_size > 1:
+		# 	self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
 
 		# ############
@@ -329,6 +329,7 @@ class XADQN(DQN):
 				self.local_replay_buffer.update_priorities(policy_batch)
 			return info_dict
 
+		# print(cur_ts > self.config.num_steps_sampled_before_learning_starts, cur_ts, self.config.num_steps_sampled_before_learning_starts)
 		if cur_ts > self.config.num_steps_sampled_before_learning_starts:
 			for _ in range(sample_and_train_weight):
 				# Sample training batch (MultiAgentBatch) from replay buffer.

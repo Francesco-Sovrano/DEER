@@ -2,6 +2,7 @@
 PyTorch policy class used for SAC.
 """
 from ray.rllib.algorithms.dqn.dqn_torch_policy import *
+from ray.rllib.evaluation.postprocessing import adjust_nstep
 import numpy as np
 
 def add_policy_signature(batch, policy): # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
