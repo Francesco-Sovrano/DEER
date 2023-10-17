@@ -32,7 +32,7 @@ from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
 from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
 
 from deer.experience_buffers.buffer.buffer import Buffer
-from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
+from deer.models.torch.head_generator.adaptive_model_wrapper import SiameseAdaptiveModel
 import gym
 from ray.rllib.utils.framework import try_import_torch
 from collections import deque, defaultdict
@@ -185,17 +185,17 @@ class XADQN(DQN):
 				'buffer_size', 1000)),
 		}
 
-		# _, env_creator = self._get_env_id_and_creator(config.env, config)
-		# tmp_env = env_creator(config["env_config"])
-		# embedding_size = self.siamese_config.get('embedding_size', 64)
-		# self.siamese_model = AdaptiveModel(gym.spaces.Dict({
-		# 	f"s_t": tmp_env.observation_space,
-		# 	f"s_(t+1)": tmp_env.observation_space,
-		# 	f"a_t": tmp_env.action_space,
-		# 	f"r_t": gym.spaces.Box(
-		# 		low=float('-inf'), high=float('inf'),
-		# 		shape=(1,), dtype=np.float32), }), config)
-		# self.loss_fn = torch.nn.TripletMarginLoss()
+		_, env_creator = self._get_env_id_and_creator(config.env, config)
+		tmp_env = env_creator(config["env_config"])
+		embedding_size = self.siamese_config.get('embedding_size', 64)
+		self.siamese_model = SiameseAdaptiveModel(gym.spaces.Dict({
+			f"s_t": tmp_env.observation_space,
+			f"s_(t+1)": tmp_env.observation_space,
+			f"a_t": tmp_env.action_space,
+			f"r_t": gym.spaces.Box(
+				low=float('-inf'), high=float('inf'),
+				shape=(1,), dtype=np.float32), }), config)
+		self.loss_fn = torch.nn.TripletMarginLoss()
 		# self.optimizer = torch.optim.Adam(
 		# 	self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
 		# self.siamese_model.to(self.siamese_config.get("device", "cpu"))
