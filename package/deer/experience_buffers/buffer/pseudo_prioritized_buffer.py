@@ -19,6 +19,7 @@ get_batch_indexes = lambda x: get_batch_infos(x)['batch_index']
 get_batch_uid = lambda x: get_batch_infos(x)['batch_uid']
 get_training_step = lambda x: get_batch_infos(x)['training_step']
 
+
 class PseudoPrioritizedBuffer(Buffer):
 	
 	def __init__(self, 

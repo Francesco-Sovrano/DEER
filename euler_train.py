@@ -42,8 +42,12 @@ default_options = {
     "no_done_at_end": False,
     "grad_clip": None,
      "gamma": 0.999, "seed": 42,
-    "train_batch_size": 2 ** 8,
+    # "train_batch_size": 2 ** 8,
     "min_train_timesteps_per_iteration": 1,
+    "batch_mode": "complete_episodes",
+    "train_batch_size": 2 ** 7,
+    "rollout_fragment_length": 2 ** 5,
+
 }
 
 

@@ -27,7 +27,7 @@ from ray.rllib.execution.common import (
 )
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
-from deer.experience_buffers.replay_buffer_wrapper_utils import get_batch_uid, get_clustered_replay_buffer, assign_types, add_buffer_metrics
+from deer.experience_buffers.replay_buffer_wrapper_utils import get_clustered_replay_buffer, assign_types, add_buffer_metrics
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
 from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
 
@@ -35,10 +35,17 @@ from deer.experience_buffers.buffer.buffer import Buffer
 from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
 import gym
 from ray.rllib.utils.framework import try_import_torch
-from collections import deque
+from collections import deque, defaultdict
+
 torch, nn = try_import_torch()
 import random
 import numpy as np
+
+get_batch_infos = lambda x: x[SampleBatch.INFOS][0]
+get_batch_indexes = lambda x: get_batch_infos(x)['batch_index']
+get_batch_uid = lambda x: get_batch_infos(x)['batch_uid']
+get_batch_type = lambda x: get_batch_infos(x)['batch_type'][0]
+get_training_step = lambda x: get_batch_infos(x)['training_step']
 
 
 class PolicySignatureListCollector(SimpleListCollector):
@@ -165,19 +172,19 @@ class XADQN(DQN):
 		# 	self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
 		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
 
-		# ############
-		# self.siamese_config = config.get("siamese_config", {})
-		#
-		# self.positive_buffer = Buffer(global_size=10000, seed=42)
-		# self.triplet_buffer = {
-		# 	'anchor': deque(maxlen=self.siamese_config.get(
-		# 		'buffer_size', 1000)),
-		# 	'positive': deque(maxlen=self.siamese_config.get(
-		# 		'buffer_size', 1000)),
-		# 	'negative': deque(maxlen=self.siamese_config.get(
-		# 		'buffer_size', 1000)),
-		# }
-		#
+		############
+		self.siamese_config = config.get("siamese_config", {})
+
+		self.positive_buffer = Buffer(global_size=10000, seed=42)
+		self.triplet_buffer = {
+			'anchor': deque(maxlen=self.siamese_config.get(
+				'buffer_size', 1000)),
+			'positive': deque(maxlen=self.siamese_config.get(
+				'buffer_size', 1000)),
+			'negative': deque(maxlen=self.siamese_config.get(
+				'buffer_size', 1000)),
+		}
+
 		# _, env_creator = self._get_env_id_and_creator(config.env, config)
 		# tmp_env = env_creator(config["env_config"])
 		# embedding_size = self.siamese_config.get('embedding_size', 64)
@@ -192,7 +199,7 @@ class XADQN(DQN):
 		# self.optimizer = torch.optim.Adam(
 		# 	self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
 		# self.siamese_model.to(self.siamese_config.get("device", "cpu"))
-		# ############
+		############
 		
 		def add_view_requirements(w):
 			for policy in w.policy_map.values():
@@ -252,17 +259,21 @@ class XADQN(DQN):
 				training_step=self.local_replay_buffer.get_train_steps())
 
 			# ############
-			# explanation_batch_dict = defaultdict(list)
-			# for sub_batch in sub_batch_iter:
-			# 	explanatory_label = sub_batch[SampleBatch.INFOS]['batch_type']
-			# 	explanation_batch_dict[explanatory_label].append(sub_batch)
-			# 	self.positive_buffer.add(sub_batch, explanatory_label)
+			explanation_batch_dict = defaultdict(list)
+			for sub_batch in sub_batch_iter:
+				pol_sub_batch = sub_batch['default_policy']
+				explanatory_label = get_batch_type(pol_sub_batch)
+				explanation_batch_dict[explanatory_label].append(pol_sub_batch)
+				self.positive_buffer.add(pol_sub_batch, explanatory_label)
 
-
-			# anchor_class,negative_class = random.sample(list(explanation_batch_dict.keys()),2)
-			# self.triplet_buffer['anchor'].append(random.choice(explanation_batch_dict[anchor_class]))
-			# self.triplet_buffer['positive'].append(random.choice(self.positive_buffer.batches[anchor_class]))
-			# self.triplet_buffer['negative'].append(random.choice(explanation_batch_dict[negative_class]))
+			anchor_class, negative_class = random.sample(list(
+				explanation_batch_dict.keys()), 2)
+			self.triplet_buffer['anchor'].append(random.choice(
+				explanation_batch_dict[anchor_class]))
+			self.triplet_buffer['positive'].append(random.choice(
+				self.positive_buffer.get_batches(anchor_class)))
+			self.triplet_buffer['negative'].append(random.choice(
+				explanation_batch_dict[negative_class]))
 			# ############
 
 			total_buffer_additions = sum(map(
