@@ -67,29 +67,40 @@ for k,v in get_model_catalog_dict(ALG_NAME, OPTIONS.get("framework","tf")).items
 	ModelCatalog.register_custom_model(k, v)
 
 # Setup MARL training strategy: centralised or decentralised
-
-env = _global_registry.get(ENV_CREATOR, ENVIRONMENT)(OPTIONS["env_config"])
-obs_space = env.observation_space
-act_space = env.action_space
 if not CENTRALISED_TRAINING:
 	policy_graphs = {
 		f'agent-{i}'
-		for i in range(NUM_AGENTS)
+		for i in range(number_of_agents)
 	}
 	policy_mapping_fn = lambda agent_id: f'agent-{agent_id}'
 else:
+	# policy_graphs = {DEFAULT_POLICY_ID: (None, obs_space, act_space, CONFIG)}
 	policy_graphs = {DEFAULT_POLICY_ID}
-	# policy_graphs = {}
 	policy_mapping_fn = lambda agent_id: DEFAULT_POLICY_ID
 
-OPTIONS["multiagent"].update({
+OPTIONS["multiagent"] = {
 	"policies": policy_graphs,
 	"policy_mapping_fn": policy_mapping_fn,
+	# Optional list of policies to train, or None for all policies.
+	"policies_to_train": None,
 	# Optional function that can be used to enhance the local agent
 	# observations to include more state.
 	# See rllib/evaluation/observation_function.py for more info.
 	"observation_fn": None,
-})
+	# When replay_mode=lockstep, RLlib will replay all the agent
+	# transitions at a particular timestep together in a batch. This allows
+	# the policy to implement differentiable shared computations between
+	# agents it controls at that timestep. When replay_mode=independent,
+	# transitions are replayed independently per policy.
+	"replay_mode": "independent", # XAER does not support "lockstep", yet
+	# Which metric to use as the "batch size" when building a
+	# MultiAgentBatch. The two supported values are:
+	# env_steps: Count each time the env is "stepped" (no matter how many
+	#   multi-agent actions are passed/how many multi-agent observations
+	#   have been returned in the previous step).
+	# agent_steps: Count each individual agent step as one step.
+	# "count_steps_by": "agent_steps", # XAER does not support "env_steps"?
+}
 print('Config:', OPTIONS)
 
 ####################################################################################
