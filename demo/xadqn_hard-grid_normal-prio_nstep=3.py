@@ -21,6 +21,7 @@ from environment import *
 SELECTED_ENV = "GridDrive-Hard"
 EXPERIENCE_BUFFER_SIZE = 2**14
 CENTRALISED_TRAINING = True
+TRAINING_STEPS = 2**17
 
 default_options = {
 	"framework": "tf",
@@ -64,7 +65,17 @@ algorithm_options = {
 	# "num_atoms": 21,
 	# "v_max": 2**5,
 	# "v_min": -1,
-	"n_step": 3,
+	# "n_step": 10,
+	"n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
+	"n_step_annealing_scheduler": {
+		'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+		'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+			'schedule_timesteps': TRAINING_STEPS//2,
+			'final_p': 1, # final n-step
+			'framework': None,
+			'initial_p': 10 # initial n-step
+		}
+	},
 }
 xa_default_options = {
 	##############################
@@ -195,4 +206,4 @@ for k,v in get_model_catalog_dict('dqn', CONFIG.get("framework",'tf')).items():
 ray.shutdown()
 ray.init(ignore_reinit_error=True)
 
-train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV, test_every_n_step=4e7, stop_training_after_n_step=4e7)
+train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV, test_every_n_step=TRAINING_STEPS*CONFIG["train_batch_size"], stop_training_after_n_step=TRAINING_STEPS*CONFIG["train_batch_size"])

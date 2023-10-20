@@ -29,10 +29,20 @@ def add_policy_signature(batch, policy): # Experience replay in MARL may suffer 
 	batch["policy_signature"] = np.tile(batch["policy_signature"],(batch.count,1))
 	return batch
 
+def sample_from_beta_with_mean(target_mean, alpha=1):
+	beta = alpha / target_mean - alpha
+	return np.random.beta(alpha, beta)
+
 def xa_postprocess_nstep_and_prio(policy, batch, other_agent=None, episode=None):
+	if policy.config['n_step_sampling_procedure'] == 'random_sampling':
+		assert policy.config["n_step_annealing_scheduler"]['fn'] != 'PiecewiseSchedule', 'Random sampling has not been implemented for PiecewiseSchedule yet since final_p and initial_p are not parameters of this function'
+		n_min = policy.config["n_step_annealing_scheduler"]['args']['final_p']
+		n_max = policy.config["n_step_annealing_scheduler"]['args']['initial_p']
+		n_step = sample_from_beta_with_mean((policy.config['n_step']-n_min)/(n_max-n_min))*(n_max-n_min)+n_min if policy.config['n_step']-n_min else n_min
+	n_step = int(np.ceil(policy.config['n_step']))
 	# N-step Q adjustments.
-	if policy.config["n_step"] > 1:
-		adjust_nstep(policy.config["n_step"], policy.config["gamma"], batch)
+	if n_step > 1:
+		adjust_nstep(n_step, policy.config["gamma"], batch)
 	if PRIO_WEIGHTS not in batch:
 		batch[PRIO_WEIGHTS] = np.ones_like(batch[SampleBatch.REWARDS])
 	if policy.config["buffer_options"]["priority_id"] == "td_errors":
