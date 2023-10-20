@@ -26,7 +26,7 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
 		self.__cluster_priority_list.append(0)
 		return True
 
-	def build_clusters(self, embedding_fn)
+	def build_clusters(self, embedding_fn):
 		self.embedding_fn = embedding_fn
 		buffer_item_list = [element for batch in self.batches for element in batch]
 		buffer_embedding_iter = self.embedding_fn(buffer_item_list)
