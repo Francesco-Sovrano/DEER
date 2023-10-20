@@ -189,16 +189,16 @@ class XADQN(DQN):
 		tmp_env = env_creator(config["env_config"])
 		embedding_size = self.siamese_config.get('embedding_size', 64)
 		self.siamese_model = SiameseAdaptiveModel(gym.spaces.Dict({
-			f"s_t": tmp_env.observation_space,
-			f"s_(t+1)": tmp_env.observation_space,
-			f"a_t": tmp_env.action_space,
-			f"r_t": gym.spaces.Box(
+			f"obs": tmp_env.observation_space,
+			f"new_obs": tmp_env.observation_space,
+			f"actions": tmp_env.action_space,
+			f"rewards": gym.spaces.Box(
 				low=float('-inf'), high=float('inf'),
 				shape=(1,), dtype=np.float32), }), config)
 		self.loss_fn = torch.nn.TripletMarginLoss()
-		# self.optimizer = torch.optim.Adam(
-		# 	self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
-		# self.siamese_model.to(self.siamese_config.get("device", "cpu"))
+		self.optimizer = torch.optim.Adam(
+			self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
+		self.siamese_model.to(self.siamese_config.get("device", "cpu"))
 		############
 		
 		def add_view_requirements(w):
@@ -280,19 +280,19 @@ class XADQN(DQN):
 				self.local_replay_buffer.add_batch, sub_batch_iter))
 
 		# ############
-		# self.siamese_model.train()
-		# self.optimizer.zero_grad()  # Clear gradients
+		self.siamese_model.train()
+		self.optimizer.zero_grad()  # Clear gradients
 
-		# anchor = self.triplet_buffer['anchor']
-		# positive = self.triplet_buffer['positive']
-		# negative = self.triplet_buffer['negative']
-		# out_a = self.siamese_model(anchor)  # Forward pass
-		# out_p = self.siamese_model(positive)  # Forward pass
-		# out_n = self.siamese_model(negative)  # Forward pass
+		anchor = self.triplet_buffer['anchor']
+		positive = self.triplet_buffer['positive']
+		negative = self.triplet_buffer['negative']
+		out_a = self.siamese_model(anchor)  # Forward pass
+		out_p = self.siamese_model(positive)  # Forward pass
+		out_n = self.siamese_model(negative)  # Forward pass
 
-		# loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
-		# loss.backward()  # Backward pass (compute gradients)
-		# self.optimizer.step()  # Update parameters
+		loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
+		loss.backward()  # Backward pass (compute gradients)
+		self.optimizer.step()  # Update parameters
 		# ############
 
 		global_vars = {
