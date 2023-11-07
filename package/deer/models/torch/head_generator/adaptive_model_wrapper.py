@@ -91,7 +91,7 @@ class AdaptiveModel(nn.Module):
             for _sub_input_list, _model_list in zip(_input_list,
                                                     self.sub_model_dict[_key]):
                 key_output_list = [
-                    _model(_input)
+                    _model(_input.float())
                     for _input, _model in zip(_sub_input_list, _model_list)
                 ]
                 key_output = torch.cat(key_output_list, -1) if len(
@@ -290,21 +290,21 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             if isinstance(self[_key], nn.ModuleDict):
                 # for _sub_input_list, _model_list in zip(
                 #         _input_list, self[_key]['cnn']):
-                #     key_output_list = _model_list(
-                #         torch.Tensor(_sub_input_list))
-                #     key_output = torch.cat(key_output_list, -1) if len(
-                #         key_output_list) > 1 else key_output_list[0]
-                #     # key_output = torch.flatten(key_output, start_dim=1)
-                #     sub_output_list.append(key_output)
+                key_output_list = self[_key]['cnn'][0][0](
+                    torch.Tensor(_input_list[0][0]))
+                key_output = torch.cat(key_output_list, -1) if len(
+                    key_output_list) > 1 else key_output_list[0]
+                # key_output = torch.flatten(key_output, start_dim=1)
+                sub_output_list.append(key_output)
 
-                for _sub_input_list, _model_list in zip(
-                        _input_list, self[_key]['fc']):
-                    key_output_list = _model_list[0](torch.Tensor(
-                        _sub_input_list))
-                    key_output = torch.cat(key_output_list, -1) if len(
-                        key_output_list) > 1 else key_output_list[0]
-                    # key_output = torch.flatten(key_output, start_dim=1)
-                    sub_output_list.append(key_output)
+                # for _sub_input_list, _model_list in zip(
+                #         _input_list, self[_key]['fc']):
+                key_output_list = self[_key]['fc'][0][0](
+                    torch.Tensor(_input_list[1][0]))
+                key_output = torch.cat(key_output_list, -1) if len(
+                    key_output_list) > 1 else key_output_list[0]
+                # key_output = torch.flatten(key_output, start_dim=1)
+                sub_output_list.append(key_output)
             else:
                 for _sub_input_list, _model_list in zip(
                         _input_list, self[_key]):
@@ -318,7 +318,7 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 sub_output_list[0])
         output = torch.cat(output_list, -1) if len(output_list) > 1 else \
             output_list[0]
-        output = torch.flatten(output, start_dim=1)
+        # output = torch.flatten(output, start_dim=1)
         return output
 
     def get_num_outputs(self):
@@ -377,8 +377,7 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             else:
                 if k not in inputs_dict:
                     inputs_dict[k] = []
-                inputs_dict[k] += get_input_recursively(v, lambda
-                    k: not k.startswith('fc') and not k.startswith('cnn'))
+                inputs_dict[k] += get_input_recursively(v)
 
         for _type, _input_list in inputs_dict.items():
             inputs_dict[_type] = [

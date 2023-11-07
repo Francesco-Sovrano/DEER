@@ -290,6 +290,8 @@ class XADQN(DQN):
 		out_p = self.siamese_model(positive)  # Forward pass
 		out_n = self.siamese_model(negative)  # Forward pass
 
+		if not torch.all(out_a == out_p):
+			print(f"finally anchor different from positive")
 		loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
 		loss.backward()  # Backward pass (compute gradients)
 		self.optimizer.step()  # Update parameters

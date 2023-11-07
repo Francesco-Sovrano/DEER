@@ -47,7 +47,7 @@ default_options = {
     "batch_mode": "complete_episodes",
     "train_batch_size": 2 ** 7,
     "rollout_fragment_length": 2 ** 5,
-
+     "_disable_preprocessor_api": True,
 }
 
 
