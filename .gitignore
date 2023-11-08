@@ -8,6 +8,7 @@ out/
 tmp/
 results/
 results_dir/
+runs/
 #experiments/
 
 # Byte-compiled / optimized / DLL files

@@ -88,7 +88,7 @@ def assign_types(multi_batch, clustering_scheme, batch_fragment_length,
 
 
 def add_buffer_metrics(results, buffer):
-	results['buffer']=buffer.stats()
+	results['buffer'] = buffer.stats()
 	return results
 
 

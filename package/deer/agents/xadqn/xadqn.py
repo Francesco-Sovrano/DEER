@@ -40,6 +40,7 @@ from collections import deque, defaultdict
 torch, nn = try_import_torch()
 import random
 import numpy as np
+from tensorboardX import SummaryWriter
 
 get_batch_infos = lambda x: x[SampleBatch.INFOS][0]
 get_batch_indexes = lambda x: get_batch_infos(x)['batch_index']
@@ -147,6 +148,7 @@ class XADQN(DQN):
 		self.optimizer = None
 		self.loss_fn = None
 		super().__init__(*args, **kwargs)
+		self.writer = SummaryWriter()
 
 
 	@classmethod
@@ -266,14 +268,15 @@ class XADQN(DQN):
 				explanation_batch_dict[explanatory_label].append(pol_sub_batch)
 				self.positive_buffer.add(pol_sub_batch, explanatory_label)
 
-			anchor_class, negative_class = random.sample(list(
-				explanation_batch_dict.keys()), 2)
-			self.triplet_buffer['anchor'].append(random.choice(
-				explanation_batch_dict[anchor_class]))
-			self.triplet_buffer['positive'].append(random.choice(
-				self.positive_buffer.get_batches(anchor_class)))
-			self.triplet_buffer['negative'].append(random.choice(
-				explanation_batch_dict[negative_class]))
+			if len(explanation_batch_dict.keys()) >= 2: # TODO: check if there is a way to avoid this check
+				anchor_class, negative_class = random.sample(list(
+					explanation_batch_dict.keys()), 2)
+				self.triplet_buffer['anchor'].append(random.choice(
+					explanation_batch_dict[anchor_class]))
+				self.triplet_buffer['positive'].append(random.choice(
+					self.positive_buffer.get_batches(anchor_class)))
+				self.triplet_buffer['negative'].append(random.choice(
+					explanation_batch_dict[negative_class]))
 			# ############
 
 			total_buffer_additions = sum(map(
@@ -290,12 +293,11 @@ class XADQN(DQN):
 		out_p = self.siamese_model(positive)  # Forward pass
 		out_n = self.siamese_model(negative)  # Forward pass
 
-		if not torch.all(out_a == out_p):
-			print(f"finally anchor different from positive")
 		loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
 		loss.backward()  # Backward pass (compute gradients)
 		self.optimizer.step()  # Update parameters
 		# ############
+		self.writer.add_scalar('data/siamese_loss', loss, self._counters[NUM_AGENT_STEPS_SAMPLED])
 
 		global_vars = {
 			"timestep": self._counters[NUM_ENV_STEPS_SAMPLED],
