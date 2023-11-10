@@ -24,12 +24,15 @@ from ray.rllib.execution.train_ops import (
 from ray.rllib.execution.common import (
 	LAST_TARGET_UPDATE_TS,
 	NUM_TARGET_UPDATES,
+	STEPS_TRAINED_COUNTER,
 )
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
 from deer.experience_buffers.replay_buffer_wrapper_utils import get_clustered_replay_buffer, assign_types, add_buffer_metrics
 from deer.agents.xadqn.xadqn_tf_policy import XADQNTFPolicy
-from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature
+
+from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_signature, torch
+from ray.rllib.utils.schedules.linear_schedule import *
 
 from deer.experience_buffers.buffer.buffer import Buffer
 from deer.models.torch.head_generator.adaptive_model_wrapper import SiameseAdaptiveModel
@@ -59,6 +62,11 @@ class PolicySignatureListCollector(SimpleListCollector):
 def init_xa_config(self):
 	self.num_steps_sampled_before_learning_starts = 2**14
 	self.min_train_timesteps_per_iteration = 1
+	self.n_step_annealing_scheduler = {
+		'fn': None, # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+		'args': {} # the arguments to pass to the function; for more details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+	}
+	self.n_step_random_sampling = False # a Boolean
 	self.buffer_options = {
 		'prioritized_replay': True,
 		#### MARL
@@ -161,12 +169,34 @@ class XADQN(DQN):
 	def get_default_policy_class(self, config):
 		return XADQNTorchPolicy if config['framework'] == "torch" else XADQNTFPolicy
 
+	def update_n_steps(self):
+		assert self.n_step_annealing_scheduler
+
+		def _update_worker_n_steps(w):
+			print(f"Updating n_step for worker {w.worker_index}")
+			for policy in w.policy_map.values():
+				policy.config['n_step'] = self.n_step_annealing_scheduler.value(self._counters['training_steps']+1)
+		if self.n_step_annealing_scheduler:
+			self.workers.foreach_worker(_update_worker_n_steps)
+
 	@override(DQN)
 	def setup(self, config):
+		if config.n_step_annealing_scheduler['args'].get('initial_p',None):
+			assert config.n_step_annealing_scheduler['args']['initial_p'] <= config.rollout_fragment_length, f"n_step_annealing_scheduler['args']['initial_p'] ({config.n_step_annealing_scheduler['args']['initial_p']}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})"
+		else:
+			assert config.n_step <= config.rollout_fragment_length, f'n_step ({config.n_step}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})'
+
 		random.seed(config.seed)
 		np.random.seed(config.seed)
 		super().setup(config)
 
+		self._counters['training_steps'] = 0
+		if self.config.n_step_annealing_scheduler['fn']:
+			self.n_step_annealing_scheduler = eval(self.config.n_step_annealing_scheduler['fn'])(**self.config.n_step_annealing_scheduler['args'])
+			self.update_n_steps()
+		else:
+			self.n_step_annealing_scheduler = None
+		
 		self.replay_batch_size = self.config.train_batch_size
 
 		self.sample_batch_size = 1
@@ -302,7 +332,7 @@ class XADQN(DQN):
 		global_vars = {
 			"timestep": self._counters[NUM_ENV_STEPS_SAMPLED],
 		}
-
+		
 		# Update target network every `target_network_update_freq` sample steps.
 		cur_ts = self._counters[
 			NUM_AGENT_STEPS_SAMPLED
@@ -368,6 +398,7 @@ class XADQN(DQN):
 					train_results = train_one_step(self, train_batch)
 				else:
 					train_results = multi_gpu_train_one_step(self, train_batch)
+				self._counters['training_steps'] += 1
 
 				# Update replay buffer priorities.
 				update_priorities(train_batch, train_results)
@@ -386,7 +417,9 @@ class XADQN(DQN):
 				with self._timers[SYNCH_WORKER_WEIGHTS_TIMER]:
 					self.workers.sync_weights(global_vars=global_vars)
 
-		# Add buffer metrics
+			if self.n_step_annealing_scheduler:
+				self.update_n_steps()
+
 		if self.config.clustering_options['collect_cluster_metrics']:
 			add_buffer_metrics(train_results, self.local_replay_buffer)
 

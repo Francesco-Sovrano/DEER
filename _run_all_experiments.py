@@ -39,8 +39,10 @@ def copy_dict_and_update_with_key(d,k,u):
 ############################################################################################
 ############################################################################################
 
-stop_training_after_n_step = int(1e7)
-save_n_checkpoints = 4
+training_steps = 2**16
+train_batch_size = 2**8
+stop_training_after_n_step = training_steps*train_batch_size
+save_n_checkpoints = 1
 save_gifs = True
 episodes_per_test = 10
 test_every_n_step = int(np.ceil(stop_training_after_n_step/save_n_checkpoints))
@@ -51,22 +53,13 @@ get_experiment_id = lambda *arg: f"deer4nstep-task_{'-'.join(map(str,arg))}"
 config_list = []
 
 default_options = {
-	"framework": "tf",
-	"model": {
-		"custom_model": "adaptive_multihead_network",
-		# "custom_model_config": {
-		# 	"comm_range": VISIBILITY_RADIUS,
-		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
-		# },
-	},
 	"no_done_at_end": False, # IMPORTANT: if set to True it allows lifelong learning with decent bootstrapping
-	"grad_clip": None, # no need of gradient clipping with huber loss
-	# "horizon": HORIZON, # Number of steps after which the episode is forced to terminate. Defaults to `env.spec.max_episode_steps` (if present) for Gym envs.
+	
+	"gamma": 0.99,
 	# "num_workers": 4, # Number of rollout worker actors to create for parallel sampling. Setting this to 0 will force rollouts to be done in the  actor.
 	# "num_envs_per_worker": 1, # Number of environments to evaluate vector-wise per worker. This enables model inference batching, which can improve performance for inference bottlenecked workloads.
 	# "vf_loss_coeff": 1.0, # Coefficient of the value function loss. IMPORTANT: you must tune this if you set vf_share_layers=True inside your model's config.
 	# "preprocessor_pref": "rllib", # this prevents reward clipping on Atari and other weird issues when running from checkpoints
-	"gamma": 0.999, # We use an higher gamma to extend the MDP's horizon; optimal agency on GraphDelivery requires a longer horizon.
 	"seed": 42, # This makes experiments reproducible.
 	# "multiagent": {
 	# 	# Optional list of policies to train, or None for all policies.
@@ -80,10 +73,10 @@ default_options = {
 	###########################
 	"batch_mode": "truncate_episodes", # For some clustering schemes (e.g. extrinsic_reward, moving_best_extrinsic_reward, etc..) it has to be equal to 'complete_episodes', otherwise it can also be 'truncate_episodes'.
 	"rollout_fragment_length": 2**6, # Divide episodes into fragments of this many steps each during rollouts. Default is 1.
-	"train_batch_size": 2**8, # Number of 'n_step' transitions per train-batch. Default is: 100 for TD3, 256 for SAC and DDPG, 32 for SAC, 500 for APPO.
+	"train_batch_size": train_batch_size, # Number of 'n_step' transitions per train-batch. Default is: 100 for TD3, 256 for SAC and DDPG, 32 for SAC, 500 for APPO.
 	###########################
 	"min_train_timesteps_per_iteration": 1,
-	"num_steps_sampled_before_learning_starts": 2**8, # How many steps of the model to sample before learning starts.
+	# "num_steps_sampled_before_learning_starts": 2**9, # How many steps of the model to sample before learning starts.
 }
 xa_default_options = {
 	##############################
@@ -102,9 +95,9 @@ xa_default_options = {
 		'cluster_size': None, # Default None, implying being equal to global_size. Maximum number of batches stored in a cluster (whose number depends on the clustering scheme) of the experience buffer. Every batch has size 'sample_batch_size' (default is 1).
 		'cluster_prioritisation_strategy': 'sum', # Whether to select which cluster to replay in a prioritised fashion -- Options: None; 'sum', 'avg', 'weighted_avg'.
 		'cluster_level_weighting': True, # Whether to use cluster-level information to compute importance weights rather than the whole buffer.
-		'clustering_xi': 2,
+		'clustering_xi': 4,
 		#################
-		'prioritized_drop_probability': 1, # Probability of dropping the batch having the lowest priority in the buffer instead of the one having the lowest timestamp. In SAC default is 0.
+		'prioritized_drop_probability': 0, # Probability of dropping the batch having the lowest priority in the buffer instead of the one having the lowest timestamp. In SAC default is 0.
 		'global_distribution_matching': False, # Whether to use a random number rather than the batch priority during prioritised dropping. If True then: At time t the probability of any experience being the max experience is 1/t regardless of when the sample was added, guaranteeing that (when prioritized_drop_probability==1) at any given time the sampled experiences will approximately match the distribution of all samples seen so far. 
 		'stationarity_window_size': None, # If lower than float('inf') and greater than 0, then the stationarity_window_size W is used to guarantee that every W training-steps the buffer is emptied from old state transitions.
 		'stationarity_smoothing_factor': 1, # A number >= 1, where 1 means no smoothing. The larger this number, the smoother the transition from a stationarity stage to the next one. This should help avoiding experience buffers saturated by one single episode during a stage transition. The optimal value should be equal to ceil(HORIZON*number_of_agents/EXPERIENCE_BUFFER_SIZE)*stationarity_window_size.
@@ -152,24 +145,48 @@ default_experiment_options = copy_dict_and_update(default_experiment_options, xa
 
 default_algorithm = 'DQN'
 algorithm_options = {
-	"horizon": 2**5,
-	"grad_clip": None, # no need of gradient clipping with huber loss
-	# "dueling": True,
-	# "double_q": True,
-	# "num_atoms": 21,
+	"framework": "torch",
+	"model": {
+		"custom_model": "adaptive_multihead_network",
+		# "custom_model_config": {
+		# 	"comm_range": VISIBILITY_RADIUS,
+		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
+		# },
+	},
+	
+	# "horizon": 2**5,
+
+	"td_error_loss_fn": "mse",
+	"grad_clip": 2,
+	"lr": 5e-4,
+	"hiddens": [256,256],
+	"target_network_update_freq": 500,
+
+	"dueling": True,
+	"double_q": True,
+	"noisy": True,
+	"sigma0": 0.5,
+	# "num_atoms": 51,
 	# "v_max": 2**5,
 	# "v_min": -1,
+
 	# "n_step": 3,
+	# "n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
+	# "n_step_annealing_scheduler": {
+	# 	'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+	# 	'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+	# 		'schedule_timesteps': TRAINING_STEPS//2,
+	# 		'final_p': 1, # final n-step
+	# 		'framework': None,
+	# 		'initial_p': 10 # initial n-step
+	# 	}
+	# },
 }
 default_environment_list = [
-	# 'GridDrive-Medium', 
+	'GridDrive-Medium', 
 	'GridDrive-Hard'
 ]
 number_of_agents_list = [1]
-
-horizon_list = [2**5]
-n_step_list = [1, 3]
-buffer_size_list = [2**14, 2**20]
 
 
 for default_environment in default_environment_list:
@@ -178,40 +195,127 @@ for default_environment in default_environment_list:
 		experiment1_options = default_experiment_options
 		experiment1_options = copy_dict_and_update(experiment1_options, algorithm_options)
 		experiment1_options = copy_dict_and_update(experiment1_options, {
-			"n_step": 3,
-		})
-		experiment1_options = copy_dict_and_update_with_key(experiment1_options, "buffer_options", {
-			'global_size': 2**14,
+			"n_step": 1,
 		})
 		# Experiment 2
-		experiment2_options = experiment1_options
-		experiment2_options = copy_dict_and_update_with_key(experiment2_options, "buffer_options", {
-			'global_size': 2**20,
+		experiment2_options = copy_dict_and_update(experiment1_options, {
+			"n_step": 10,
 		})
 		# Experiment 3
-		experiment3_options = experiment1_options
-		experiment3_options = copy_dict_and_update_with_key(experiment3_options, "clustering_options", {
-			'clustering_scheme': [
-				'Why',
-				# 'Who',
-				'How_Well',
-				# 'How_Fair',
-				# 'Where',
-				# 'What',
-				# 'How_Many'
-				# 'UWho',
-				# 'UWhich_CoopStrategy',
-			],
+		experiment3_options = copy_dict_and_update(experiment1_options, {
+			"n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
+			"n_step_annealing_scheduler": {
+				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+					'schedule_timesteps': training_steps//2,
+					'final_p': 1, # final n-step
+					'framework': None,
+					'initial_p': 10 # initial n-step
+				}
+			},
+		})
+		# Experiment 4
+		experiment4_options = copy_dict_and_update(experiment1_options, {
+			"n_step_sampling_procedure": None, # either None or 'random_sampling'
+			"n_step_annealing_scheduler": {
+				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+					'schedule_timesteps': training_steps//2,
+					'final_p': 1, # final n-step
+					'framework': None,
+					'initial_p': 10 # initial n-step
+				}
+			},
 		})
 		## build experiments
 		eid = get_experiment_id(default_environment.replace('/','_'), num_agents)
 		config_list += [
-			# n_step with small buffer
+			#
 			('XA'+default_algorithm, default_environment, f'exp1-{default_algorithm}-{eid}', num_agents, experiment1_options),
-			# n_step with large buffer
+			#
 			('XA'+default_algorithm, default_environment, f'exp2-{default_algorithm}-{eid}', num_agents, experiment2_options),
-			# n_step with small buffer and XAER
+			#
 			('XA'+default_algorithm, default_environment, f'exp3-{default_algorithm}-{eid}', num_agents, experiment3_options),
+			#
+			('XA'+default_algorithm, default_environment, f'exp4-{default_algorithm}-{eid}', num_agents, experiment4_options),
+		]
+
+############################################################################################
+############################################################################################
+
+default_algorithm = 'SAC'
+algorithm_options = {
+	"framework": "torch",
+	"model": {
+		"custom_model": "adaptive_multihead_network",
+		# "custom_model_config": {
+		# 	"comm_range": VISIBILITY_RADIUS,
+		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
+		# },
+	},
+	
+	# "horizon": 2**5,
+	# "gamma": 0.999, # We use an higher gamma to extend the MDP's horizon; optimal agency on GraphDrive requires a longer horizon.
+	"tau": 1e-4,
+
+	"grad_clip": 2,
+}
+default_environment_list = [
+	'GraphDrive-Medium', 
+	'GraphDrive-Hard'
+]
+number_of_agents_list = [1]
+
+
+for default_environment in default_environment_list:
+	for num_agents in number_of_agents_list:
+		# Experiment 1
+		experiment1_options = default_experiment_options
+		experiment1_options = copy_dict_and_update(experiment1_options, algorithm_options)
+		experiment1_options = copy_dict_and_update(experiment1_options, {
+			"n_step": 1,
+		})
+		# Experiment 2
+		experiment2_options = copy_dict_and_update(experiment1_options, {
+			"n_step": 10,
+		})
+		# Experiment 3
+		experiment3_options = copy_dict_and_update(experiment1_options, {
+			"n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
+			"n_step_annealing_scheduler": {
+				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+					'schedule_timesteps': training_steps//2,
+					'final_p': 1, # final n-step
+					'framework': None,
+					'initial_p': 10 # initial n-step
+				}
+			},
+		})
+		# Experiment 4
+		experiment4_options = copy_dict_and_update(experiment1_options, {
+			"n_step_sampling_procedure": None, # either None or 'random_sampling'
+			"n_step_annealing_scheduler": {
+				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+					'schedule_timesteps': training_steps//2,
+					'final_p': 1, # final n-step
+					'framework': None,
+					'initial_p': 10 # initial n-step
+				}
+			},
+		})
+		## build experiments
+		eid = get_experiment_id(default_environment.replace('/','_'), num_agents)
+		config_list += [
+			#
+			('XA'+default_algorithm, default_environment, f'exp1-{default_algorithm}-{eid}', num_agents, experiment1_options),
+			#
+			('XA'+default_algorithm, default_environment, f'exp2-{default_algorithm}-{eid}', num_agents, experiment2_options),
+			#
+			('XA'+default_algorithm, default_environment, f'exp3-{default_algorithm}-{eid}', num_agents, experiment3_options),
+			#
+			('XA'+default_algorithm, default_environment, f'exp4-{default_algorithm}-{eid}', num_agents, experiment4_options),
 		]
 
 ############################################################################################

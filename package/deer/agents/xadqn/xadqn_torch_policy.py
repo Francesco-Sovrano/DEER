@@ -4,6 +4,7 @@ PyTorch policy class used for SAC.
 from ray.rllib.algorithms.dqn.dqn_torch_policy import *
 from ray.rllib.evaluation.postprocessing import adjust_nstep
 import numpy as np
+import random
 
 def add_policy_signature(batch, policy): # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
 	# train_step = np.array((policy.num_grad_updates,), dtype=np.float32)
@@ -29,10 +30,54 @@ def add_policy_signature(batch, policy): # Experience replay in MARL may suffer 
 	batch["policy_signature"] = np.tile(batch["policy_signature"],(batch.count,1))
 	return batch
 
+def sample_from_beta_with_mean(target_mean, alpha=1):
+	beta = alpha / target_mean - alpha
+	return np.random.beta(alpha, beta)
+
+def special_adjust_nstep(n_step, gamma, batch):
+	assert not any(
+		batch[SampleBatch.DONES][:-1]
+	), "Unexpected done in middle of trajectory!"
+
+	len_ = len(batch)
+
+	# Shift NEXT_OBS and DONES.
+	batch[SampleBatch.NEXT_OBS] = np.concatenate(
+		[
+			batch[SampleBatch.OBS][n_step:],
+			np.stack([batch[SampleBatch.NEXT_OBS][-1]] * min(n_step, len_)),
+		],
+		axis=0,
+	)
+	batch[SampleBatch.DONES] = np.concatenate(
+		[
+			batch[SampleBatch.DONES][n_step - 1 :],
+			np.tile(batch[SampleBatch.DONES][-1], min(n_step - 1, len_)),
+		],
+		axis=0,
+	)
+
+	# Change rewards in place.
+	for i in range(len_):
+		if i+n_step >= len_:
+			break
+		idx_of_highest_rewards = batch[SampleBatch.REWARDS][i+1:i+n_step].argmax(axis=-1)
+		batch[SampleBatch.REWARDS][i] += (
+			gamma**(idx_of_highest_rewards-i) * batch[SampleBatch.REWARDS][idx_of_highest_rewards]
+		)
+		# batch[SampleBatch.REWARDS][i] += (
+		# 	gamma**(n_step-1) * batch[SampleBatch.REWARDS][n_step-1]
+		# )
+
 def xa_postprocess_nstep_and_prio(policy, batch, other_agent=None, episode=None):
+	n_step = random.uniform(0,1)*policy.config['n_step'] if policy.config['n_step_random_sampling'] else policy.config['n_step'] # double-check that the random seed initialization done within the algorithm constructor is reaching this point
+	n_step = int(np.ceil(n_step))
 	# N-step Q adjustments.
-	if policy.config["n_step"] > 1:
-		adjust_nstep(policy.config["n_step"], policy.config["gamma"], batch)
+	if n_step > 1:
+		if policy.config['n_step_annealing_scheduler']['fn']:
+			special_adjust_nstep(n_step, policy.config["gamma"], batch)
+		else:
+			adjust_nstep(n_step, policy.config["gamma"], batch)
 	if PRIO_WEIGHTS not in batch:
 		batch[PRIO_WEIGHTS] = np.ones_like(batch[SampleBatch.REWARDS])
 	if policy.config["buffer_options"]["priority_id"] == "td_errors":

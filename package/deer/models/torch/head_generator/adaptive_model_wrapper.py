@@ -78,6 +78,7 @@ class AdaptiveModel(nn.Module):
             assert other_inputs_list
             logger.warning('N.B.: Flattening all observations!')
 
+
     def variables(self, as_dict=False):
         if as_dict:
             return self.state_dict()
