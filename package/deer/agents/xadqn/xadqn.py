@@ -202,7 +202,8 @@ class XADQN(DQN):
 		self.sample_batch_size = 1
 		# if self.sample_batch_size and self.sample_batch_size > 1:
 		# 	self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
-		self.local_replay_buffer, self.clustering_scheme = get_clustered_replay_buffer(self.config)
+		self.local_replay_buffer, self.clustering_scheme = (
+			get_clustered_replay_buffer(self.config, siamese=True))
 
 		############
 		self.siamese_config = config.get("siamese_config", {})

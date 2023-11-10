@@ -43,7 +43,7 @@ class PseudoPrioritizedBuffer(Buffer):
 		priority_lower_limit=None,
 		max_age_window=None,
 		seed=None,
-		**args
+		**kwargs
 	): # O(1)
 		assert not prioritization_importance_beta or prioritization_importance_beta > 0., f"prioritization_importance_beta must be > 0, but it is {prioritization_importance_beta}"
 		assert not prioritization_importance_eta or prioritization_importance_eta > 0, f"prioritization_importance_eta must be > 0, but it is {prioritization_importance_eta}"
@@ -69,7 +69,8 @@ class PseudoPrioritizedBuffer(Buffer):
 		# self._clip_cluster_priority_by_max_capacity = clip_cluster_priority_by_max_capacity
 		self._weight_importance_by_update_time = self._max_age_window = max_age_window
 		logger.warning(f'Building new buffer with: prioritized_drop_probability={prioritized_drop_probability}, global_distribution_matching={global_distribution_matching}, stationarity_window_size={stationarity_window_size}, stationarity_smoothing_factor={stationarity_smoothing_factor}')
-		super().__init__(cluster_size=cluster_size, global_size=global_size, seed=seed)
+		super(PseudoPrioritizedBuffer, self).__init__(
+			cluster_size=cluster_size, global_size=global_size, seed=seed)
 		self._it_capacity = 1
 		while self._it_capacity < self.cluster_size:
 			self._it_capacity *= 2

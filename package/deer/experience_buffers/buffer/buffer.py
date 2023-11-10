@@ -10,12 +10,12 @@ logger = logging.getLogger(__name__)
 class Buffer(object):
 	# __slots__ = ('cluster_size','global_size','types','batches','type_values','type_keys')
 	
-	def __init__(self, cluster_size=None, global_size=50000, seed=None, **args):
+	def __init__(self, cluster_size=None, global_size=50000, seed=None, **kwargs):
 		random.seed(seed)
 		np.random.seed(seed)
 		assert cluster_size or global_size, 'At least one of cluster_size or global_size shall be set greater than 0.'
-		if not cluster_size: cluster_size = global_size
-		self.cluster_size = min(cluster_size,global_size) if global_size else cluster_size
+		if not cluster_size:  cluster_size = global_size
+		self.cluster_size = min(cluster_size, global_size) if global_size else cluster_size
 		self.global_size = global_size
 		self.timesteps = 0
 		self.clean()

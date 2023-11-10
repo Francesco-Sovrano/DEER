@@ -13,6 +13,7 @@ import ray  # noqa F401
 import psutil  # noqa E402
 
 from deer.experience_buffers.buffer.pseudo_prioritized_buffer import PseudoPrioritizedBuffer, get_batch_infos, get_batch_indexes, get_batch_uid, discard_batch
+from deer.experience_buffers.buffer.hierarchical_prioritized_buffer import HierarchicalPrioritizedBuffer
 from deer.experience_buffers.buffer.buffer import Buffer
 from deer.experience_buffers.explanation_cluster_manager import *
 from deer.utils import ReadWriteLock
@@ -24,7 +25,7 @@ from ray.util.timer import _Timer as TimerStat
 logger = logging.getLogger(__name__)
 
 
-def get_clustered_replay_buffer(config):
+def get_clustered_replay_buffer(config, siamese=False):
 	assert config.batch_mode == "complete_episodes" or not config.clustering_options["cluster_with_episode_type"], f"This algorithm requires 'complete_episodes' as batch_mode when 'cluster_with_episode_type' is True"
 	clustering_scheme_type = config.clustering_options.get("clustering_scheme", None)
 	# no need for unclustered_buffer if clustering_scheme_type is none
@@ -35,6 +36,7 @@ def get_clustered_replay_buffer(config):
 		seed=config.seed,
 		cluster_selection_policy=config.clustering_options["cluster_selection_policy"],
 		ratio_of_samples_from_unclustered_buffer=ratio_of_samples_from_unclustered_buffer,
+		siamese=siamese,
 	)
 	clustering_scheme = ClusterManager(clustering_scheme_type, config.clustering_options["clustering_scheme_options"])
 	return local_replay_buffer, clustering_scheme
@@ -183,13 +185,17 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		seed=None,
 		cluster_selection_policy='random_uniform',
 		ratio_of_samples_from_unclustered_buffer=0,
+		siamese=False
 	):
 		self.buffer_options = buffer_options
 		self.prioritized_replay = self.buffer_options['prioritized_replay']
 		self.centralised_buffer = self.buffer_options['centralised_buffer']
 		logger.warning(f'Building LocalReplayBuffer with centralised_buffer = {self.centralised_buffer}')
 		self.replay_integral_multi_agent_batches = self.buffer_options.get('replay_integral_multi_agent_batches', False)
-		dummy_buffer = PseudoPrioritizedBuffer(**self.buffer_options)
+
+		buffer_class = HierarchicalPrioritizedBuffer if siamese else PseudoPrioritizedBuffer
+		self.buffer_class = buffer_class
+		dummy_buffer = buffer_class(**self.buffer_options)
 		self.buffer_size = dummy_buffer.global_size
 		self.is_weighting_expected_values = dummy_buffer.is_weighting_expected_values()
 		# self.replay_starts = learning_starts
@@ -203,7 +209,8 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		ParallelIteratorWorker.__init__(self, None, False)
 
 		def new_buffer():
-			return PseudoPrioritizedBuffer(**self.buffer_options, seed=seed) if self.prioritized_replay else Buffer(**self.buffer_options, seed=seed)
+			return self.buffer_class(**self.buffer_options, seed=seed) if (
+				self.prioritized_replay) else Buffer(**self.buffer_options, seed=seed)
 
 		self.replay_buffers = collections.defaultdict(new_buffer)
 		self.ratio_of_old_elements = np.clip(1-ratio_of_samples_from_unclustered_buffer, 0,1)
