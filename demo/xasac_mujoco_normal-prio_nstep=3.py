@@ -10,7 +10,7 @@ import copy
 from ray.tune.registry import get_trainable_cls, _global_registry, ENV_CREATOR
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from deer.utils.workflow import train
-from deer.agents.xadqn import XADQN, XADQNConfig
+from deer.agents.xaddpg import XATD3, XATD3Config
 
 # Import environments
 import sys
@@ -18,10 +18,11 @@ sys.path.append(".")  # Adds the parent directory to the system path.
 sys.path.append("..")  # Adds the parent directory to the system path.
 from environment import *
 
-SELECTED_ENV = "GridDrive-Hard"
-EXPERIENCE_BUFFER_SIZE = 2**14
+SELECTED_ENV = "Humanoid-v3"
+EXPERIENCE_BUFFER_SIZE = 2**12
 CENTRALISED_TRAINING = True
 TRAINING_STEPS = 2**17
+HORIZON = 2**10
 
 default_options = {
 	"framework": "torch",
@@ -32,8 +33,9 @@ default_options = {
 		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
 		# },
 	},
+	"_disable_env_checking": True,
 	"no_done_at_end": False, # IMPORTANT: if set to True it allows lifelong learning with decent bootstrapping
-	# "horizon": HORIZON, # Number of steps after which the episode is forced to terminate. Defaults to `env.spec.max_episode_steps` (if present) for Gym envs.
+	"horizon": HORIZON, # Number of steps after which the episode is forced to terminate. Defaults to `env.spec.max_episode_steps` (if present) for Gym envs.
 	# "num_workers": 4, # Number of rollout worker actors to create for parallel sampling. Setting this to 0 will force rollouts to be done in the  actor.
 	# "num_envs_per_worker": 1, # Number of environments to evaluate vector-wise per worker. This enables model inference batching, which can improve performance for inference bottlenecked workloads.
 	# "vf_loss_coeff": 1.0, # Coefficient of the value function loss. IMPORTANT: you must tune this if you set vf_share_layers=True inside your model's config.
@@ -51,10 +53,10 @@ default_options = {
 	###########################
 	"batch_mode": "truncate_episodes", # For some clustering schemes (e.g. extrinsic_reward, moving_best_extrinsic_reward, etc..) it has to be equal to 'complete_episodes', otherwise it can also be 'truncate_episodes'.
 	"rollout_fragment_length": 2**6, # Divide episodes into fragments of this many steps each during rollouts. Default is 1.
-	"train_batch_size": 2**8, # Number of 'n_step' transitions per train-batch. Default is: 100 for TD3, 256 for SAC and DDPG, 32 for SAC, 500 for APPO.
+	"train_batch_size": 2**8, # Number of 'n_step' transitions per train-batch. Default is: 100 for TD3, 256 for TD3 and DDPG, 32 for TD3, 500 for APPO.
 	###########################
 	"min_train_timesteps_per_iteration": 1,
-	"num_steps_sampled_before_learning_starts": 1, # How many steps of the model to sample before learning starts.
+	"num_steps_sampled_before_learning_starts": 2**8, # How many steps of the model to sample before learning starts.
 	"count_steps_by": "agent_steps", # XAER does not support "env_steps"?
 }
 algorithm_options = {
@@ -64,7 +66,7 @@ algorithm_options = {
 	# "num_atoms": 21,
 	# "v_max": 2**5,
 	# "v_min": -1,
-	"n_step": 10,
+	# "n_step": 10,
 	"n_step_random_sampling": True, # a Boolean
 	"n_step_annealing_scheduler": {
 		'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
@@ -95,7 +97,7 @@ xa_default_options = {
 		'cluster_level_weighting': True, # Whether to use cluster-level information to compute importance weights rather than the whole buffer.
 		'clustering_xi': 2,
 		#################
-		'prioritized_drop_probability': 1, # Probability of dropping the batch having the lowest priority in the buffer instead of the one having the lowest timestamp. In SAC default is 0.
+		'prioritized_drop_probability': 1, # Probability of dropping the batch having the lowest priority in the buffer instead of the one having the lowest timestamp. In TD3 default is 0.
 		'global_distribution_matching': False, # Whether to use a random number rather than the batch priority during prioritised dropping. If True then: At time t the probability of any experience being the max experience is 1/t regardless of when the sample was added, guaranteeing that (when prioritized_drop_probability==1) at any given time the sampled experiences will approximately match the distribution of all samples seen so far. 
 		'stationarity_window_size': None, # If lower than float('inf') and greater than 0, then the stationarity_window_size W is used to guarantee that every W training-steps the buffer is emptied from old state transitions.
 		'stationarity_smoothing_factor': 1, # A number >= 1, where 1 means no smoothing. The larger this number, the smoother the transition from a stationarity stage to the next one. This should help avoiding experience buffers saturated by one single episode during a stage transition. The optimal value should be equal to ceil(HORIZON*number_of_agents/EXPERIENCE_BUFFER_SIZE)*stationarity_window_size.
@@ -196,7 +198,7 @@ print('Config:', CONFIG)
 # Register models
 from ray.rllib.models import ModelCatalog
 from deer.models import get_model_catalog_dict
-for k,v in get_model_catalog_dict('dqn', CONFIG.get("framework",'torch')).items():
+for k,v in get_model_catalog_dict('td3', CONFIG.get("framework",'torch')).items():
 	ModelCatalog.register_custom_model(k, v)
 
 ####################################################################################
@@ -205,4 +207,4 @@ for k,v in get_model_catalog_dict('dqn', CONFIG.get("framework",'torch')).items(
 ray.shutdown()
 ray.init(ignore_reinit_error=True)
 
-train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV, test_every_n_step=TRAINING_STEPS*CONFIG["train_batch_size"], stop_training_after_n_step=TRAINING_STEPS*CONFIG["train_batch_size"])
+train(XATD3, XATD3Config, CONFIG, SELECTED_ENV, test_every_n_step=TRAINING_STEPS*CONFIG["train_batch_size"], stop_training_after_n_step=TRAINING_STEPS*CONFIG["train_batch_size"])

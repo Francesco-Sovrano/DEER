@@ -38,25 +38,27 @@ class AdaptiveModel(nn.Module):
 		self._num_outputs = None
 		self.sub_model_dict = {}
 
-		###### FC
-		fc_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'fc')
-		# print(1, fc_inputs_shape_dict)
-		if fc_inputs_shape_dict:
-			self.sub_model_dict['fc'] = [
-				self.fc_head_build(_key,_input_list)
-				for (_key,_),_input_list in fc_inputs_shape_dict.items()
-			]
+		if isinstance(obs_space, gym.spaces.Dict):
+			###### FC
+			fc_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'fc')
+			# print(1, fc_inputs_shape_dict)
+			if fc_inputs_shape_dict:
+				self.sub_model_dict['fc'] = [
+					self.fc_head_build(_key,_input_list)
+					for (_key,_),_input_list in fc_inputs_shape_dict.items()
+				]
 
-		###### CNN
-		cnn_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'cnn')
-		if cnn_inputs_shape_dict:
-			self.sub_model_dict['cnn'] = [
-				self.cnn_head_build(_key,_input_list)
-				for (_key,_),_input_list in cnn_inputs_shape_dict.items()
-			]
-
-		###### Others
-		other_inputs_list = get_input_recursively(obs_space, lambda k: not k.startswith('fc') and not k.startswith('cnn'))
+			###### CNN
+			cnn_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'cnn')
+			if cnn_inputs_shape_dict:
+				self.sub_model_dict['cnn'] = [
+					self.cnn_head_build(_key,_input_list)
+					for (_key,_),_input_list in cnn_inputs_shape_dict.items()
+				]
+			###### Others
+			other_inputs_list = get_input_recursively(obs_space, lambda k: not k.startswith('fc') and not k.startswith('cnn'))
+		else:
+			other_inputs_list = get_input_recursively(obs_space)
 		if other_inputs_list:
 			self.sub_model_dict[''] = [[nn.Flatten()] for l in other_inputs_list]
 		if not self.sub_model_dict.get('cnn',None) and not self.sub_model_dict.get('fc',None):
@@ -124,7 +126,8 @@ class AdaptiveModel(nn.Module):
 
 	@staticmethod
 	def get_inputs_dict(_obs):
-		assert isinstance(_obs, dict)
+		if not isinstance(_obs, dict):
+			_obs = {'': _obs}
 		
 		inputs_dict = {}
 		for k,v in sorted(_obs.items(), key=lambda x:x[0]):

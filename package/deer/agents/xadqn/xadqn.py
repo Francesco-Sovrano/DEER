@@ -54,7 +54,7 @@ def init_xa_config(self):
 		'fn': None, # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
 		'args': {} # the arguments to pass to the function; for more details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
 	}
-	self.n_step_sampling_procedure = None # either None or 'random_sampling'
+	self.n_step_random_sampling = False # a Boolean
 	self.buffer_options = {
 		'prioritized_replay': True,
 		#### MARL

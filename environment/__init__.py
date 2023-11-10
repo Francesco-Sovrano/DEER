@@ -3,6 +3,17 @@ from ray.tune.registry import register_env
 
 from environment.custom_metrics import CustomEnvironmentCallbacks
 
+### ATARI + Mujoco
+import gym
+
+# Get the list of all environment IDs from gymnasium
+env_ids = gym.envs.registry.env_specs.keys()
+
+# Register each environment using the register_env function
+for env_id in env_ids:
+	# Register the environment
+	register_env(env_id, lambda env_config: gym.make(env_id, **env_config))
+
 ### CescoDrive
 from environment.car_controller.cesco_drive.cesco_drive_v0 import CescoDriveV0
 register_env("CescoDrive-V0", lambda config: CescoDriveV0(config))
