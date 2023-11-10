@@ -40,14 +40,14 @@ default_options = {
         "custom_model": "adaptive_multihead_network",
     },
     "no_done_at_end": False,
-    "grad_clip": None,
-     "gamma": 0.999, "seed": 42,
+    "gamma": 0.999, 
+    "seed": 42,
     # "train_batch_size": 2 ** 8,
     "min_train_timesteps_per_iteration": 1,
-    "batch_mode": "complete_episodes",
-    "train_batch_size": 2 ** 7,
-    "rollout_fragment_length": 2 ** 5,
-     "_disable_preprocessor_api": True,
+    # "batch_mode": "complete_episodes",
+    "train_batch_size": 2 ** 10,
+    "rollout_fragment_length": 2 ** 8,
+    "_disable_preprocessor_api": True,
 }
 
 
@@ -76,8 +76,8 @@ xa_default_options = {
         'cluster_size': None,
         'cluster_prioritisation_strategy': 'sum',
         'cluster_level_weighting': True,
-        'clustering_xi': 2,
-        'prioritized_drop_probability': 1,
+        'clustering_xi': 1,
+        'prioritized_drop_probability': 0,
         'global_distribution_matching': False,
         'stationarity_window_size': None,
         'stationarity_smoothing_factor': 1,
@@ -151,8 +151,7 @@ def run_training(args):
     print('Config:', CONFIG)
 
     # Register models
-    for k, v in get_model_catalog_dict(
-            'dqn', CONFIG.get("framework", 'tf')).items():
+    for k, v in get_model_catalog_dict('dqn', CONFIG.get("framework", 'torch')).items():
         ModelCatalog.register_custom_model(k, v)
 
     ray.shutdown()
