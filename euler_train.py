@@ -95,20 +95,20 @@ xa_default_options = {
             # 'UWho',
             # 'UWhich_CoopStrategy',
         ],
-        # "clustering_scheme_options": {
-        #     "n_clusters": {
-        #         "who": 4,
-        #         # "why": 8,
-        #         # "what": 8,
-        #     },
-        #     "default_n_clusters": 8,
-        #     "frequency_independent_clustering": False,
-        #     # Setting this to True can be memory expensive, especially for WHO explanations
-        #     "agent_action_sliding_window": 2 ** 3,
-        #     "episode_window_size": 2 ** 6,
-        #     "batch_window_size": 2 ** 8,
-        #     "training_step_window_size": 2 ** 2,
-        # },
+        "clustering_scheme_options": {
+            # "n_clusters": {
+            #     "who": 4,
+            #     # "why": 8,
+            #     # "what": 8,
+            # },
+            # "default_n_clusters": 8,
+            # "frequency_independent_clustering": False,
+            # # Setting this to True can be memory expensive, especially for WHO explanations
+            # "agent_action_sliding_window": 2 ** 3,
+            # "episode_window_size": 2 ** 6,
+            # "batch_window_size": 2 ** 8,
+            # "training_step_window_size": 2 ** 2,
+        },
         "cluster_selection_policy": "min",
         "cluster_with_episode_type": False,
         "cluster_overview_size": 1,
