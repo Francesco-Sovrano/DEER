@@ -15,5 +15,3 @@ torch==1.13.1
 
 ray[rllib]==2.2.0
 pandas
-
-gym

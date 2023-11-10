@@ -18,7 +18,7 @@ sys.path.append(".")  # Adds the parent directory to the system path.
 sys.path.append("..")  # Adds the parent directory to the system path.
 from environment import *
 
-SELECTED_ENV = "Humanoid-v3"
+SELECTED_ENV = "Humanoid-v4"
 EXPERIENCE_BUFFER_SIZE = 2**12
 CENTRALISED_TRAINING = True
 TRAINING_STEPS = 2**17
@@ -33,7 +33,6 @@ default_options = {
 		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
 		# },
 	},
-	"_disable_env_checking": True,
 	"no_done_at_end": False, # IMPORTANT: if set to True it allows lifelong learning with decent bootstrapping
 	"horizon": HORIZON, # Number of steps after which the episode is forced to terminate. Defaults to `env.spec.max_episode_steps` (if present) for Gym envs.
 	# "num_workers": 4, # Number of rollout worker actors to create for parallel sampling. Setting this to 0 will force rollouts to be done in the  actor.
