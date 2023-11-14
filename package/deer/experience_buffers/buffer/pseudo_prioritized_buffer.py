@@ -374,15 +374,15 @@ class PseudoPrioritizedBuffer(Buffer):
 		# 	self.__max_priority_list = tuple(map(lambda x: x.max_tree.max()[0], self._sample_priority_tree)) # O(log)
 		# 	self.__max_priority = max(self.__max_priority_list)
 		if self._cluster_prioritisation_strategy is not None:
-			self.__cluster_priority_list = tuple(map(lambda x: self.get_cluster_priority(x, self.__min_priority if self._priority_lower_limit is None else 0), self._sample_priority_tree)) # always > 0
-			self.__tot_cluster_priority = sum(self.__cluster_priority_list)
+			self.cluster_priority_list = tuple(map(lambda x: self.get_cluster_priority(x, self.__min_priority if self._priority_lower_limit is None else 0), self._sample_priority_tree)) # always > 0
+			self.__tot_cluster_priority = sum(self.cluster_priority_list)
 			# eta_normalise = lambda x: self.eta_normalisation(x, np.min(x), np.max(x), np.abs(np.std(x)/np.mean(x))) # using the coefficient of variation as eta
 			# self.__cluster_priority_list = eta_normalise(eta_normalise(self.__cluster_priority_list)) # first eta-normalisation makes priorities in (0,1], but it inverts their magnitude # second eta-normalisation guarantees original priorities magnitude is preserved
-			self.__min_cluster_priority = min(self.__cluster_priority_list)
+			self.__min_cluster_priority = min(self.cluster_priority_list)
 
 	def sample_cluster(self):
 		if self._cluster_prioritisation_strategy is not None:
-			type_cumsum = np.cumsum(self.__cluster_priority_list) # O(|self.type_keys|)
+			type_cumsum = np.cumsum(self.cluster_priority_list) # O(|self.type_keys|)
 			type_mass = random.random() * type_cumsum[-1] # O(1)
 			assert 0 <= type_mass, f'type_mass {type_mass} should be greater than 0'
 			assert type_mass <= type_cumsum[-1], f'type_mass {type_mass} should be lower than {type_cumsum[-1]}'
@@ -403,12 +403,12 @@ class PseudoPrioritizedBuffer(Buffer):
 			for _ in range(n)
 		]
 		batch_list = [
-			type_batch[idx] # O(1)
+			type_batch[idx]  # O(1)
 			for idx in idx_list
 		]
 		# Update weights
-		if self._prioritization_importance_beta: # Update weights
-			for batch,idx in zip(batch_list,idx_list):
+		if self._prioritization_importance_beta:  # Update weights
+			for batch, idx in zip(batch_list, idx_list):
 				self.update_beta_weights(batch, idx, type_)
 		return batch_list
 
@@ -430,7 +430,7 @@ class PseudoPrioritizedBuffer(Buffer):
 				norm_fn = (lambda x,n: self.normalise_priority(x, self.__historical_min_priority, n=n))
 		if type_ is None:
 			return norm_fn(priority, 1) / norm_fn(self.__tot_priority, self.__tot_elements)
-		p_cluster = self.__cluster_priority_list[type_] / self.__tot_cluster_priority # clusters priorities are already > 0
+		p_cluster = self.cluster_priority_list[type_] / self.__tot_cluster_priority # clusters priorities are already > 0
 		p_transition_given_cluster = norm_fn(priority, 1) / norm_fn(self.__tot_priority_list[type_], self.__tot_elements_list[type_])
 		# print(p_cluster, p_transition_given_cluster)
 		return p_cluster*p_transition_given_cluster # joint probability of dependent events
@@ -508,7 +508,7 @@ class PseudoPrioritizedBuffer(Buffer):
 	def stats(self, debug=False):
 		stats_dict = super().stats(debug)
 		stats_dict.update({
-			'cluster_capacity':self.get_cluster_capacity_dict(),
+			'cluster_capacity': self.get_cluster_capacity_dict(),
 			'cluster_priority': self.get_cluster_priority_dict(),
 		})
 		return stats_dict

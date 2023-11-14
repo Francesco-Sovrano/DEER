@@ -327,17 +327,19 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		with self.replay_timer:
 			batch_list = [{} for _ in range(batch_count)]
 			buffer_dict_items = [x for x in buffer_dict.items() if not x[-1].is_empty()]
-			for buffer_idx,(policy_id, replay_buffer) in enumerate(buffer_dict_items):
+			for buffer_idx, (policy_id, replay_buffer) in enumerate(buffer_dict_items):
 				# if replay_buffer.is_empty():
 				# 	continue
 				# batch_iter = replay_buffer.sample(batch_count)
 				batch_size_list = [cluster_overview_size]*(batch_count//cluster_overview_size)
 				if batch_count%cluster_overview_size > 0:
-					batch_size_list.append(batch_count%cluster_overview_size)
+					batch_size_list.append(
+						batch_count % cluster_overview_size)
 				self._buffer_lock.acquire_read()
 				batch_iter = []
-				for i,n in enumerate(batch_size_list):
-					batch_iter += replay_buffer.sample(n,recompute_priorities=i==0)
+				for i, n in enumerate(batch_size_list):
+					batch_iter += replay_buffer.sample(
+						n, recompute_priorities=i == 0)
 				self._buffer_lock.release_read()
 				if update_replayed_fn:
 					self._buffer_lock.acquire_write()
@@ -354,7 +356,7 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		# print(batch_list)
 		return (
 			MultiAgentBatch(samples, max(map(lambda x:x.count, samples.values()))) 
-			if isinstance(samples,dict) else 
+			if isinstance(samples, dict) else
 			samples
 			for samples in batch_list
 		)
@@ -389,3 +391,7 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 				policy_id: replay_buffer.stats(debug=debug)
 			})
 		return stat
+
+	def build_clusters(self, embedding_fn):
+		for buffer in self.replay_buffers.values():
+			buffer.build_clusters(embedding_fn)

@@ -11,16 +11,18 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
     def __init__(self, **configs):  # O(1)
         super(HierarchicalPrioritizedBuffer, self).__init__(**configs)
         self.clustering = None
-        self.__cluster_priority_list = []
+        self.cluster_priority_list = []
         self.embedding_fn = None
 
     def clean(self):  # O(1)
         super().clean()
-        self.__cluster_priority_list = []
+        self.cluster_priority_list = []
 
     def _add_type_if_not_exist(self, type_id):  # O(1)
-        super()._add_type_if_not_exist(type_id)
-        self.__cluster_priority_list.append(0)
+        exists = super()._add_type_if_not_exist(type_id)
+        if not exists:
+            return False
+        self.cluster_priority_list.append(0)
         return True
 
     def build_clusters(self, embedding_fn):
@@ -41,10 +43,10 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
     # self._cluster_centers = ms.cluster_centers_
 
     def update_beta_weights(self, batch, type_):
-        tot_cluster_priority = sum(self.__cluster_priority_list)
+        tot_cluster_priority = sum(self.cluster_priority_list)
         ##########
         # Get priority weight
-        get_probability = lambda x: self.__cluster_priority_list[
+        get_probability = lambda x: self.cluster_priority_list[
                                         x] / tot_cluster_priority
         this_probability = get_probability(
             type_)  # clusters priorities are already > 0
@@ -58,13 +60,13 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
         ##########
         batch[PRIO_WEIGHTS] = np.full(batch.count, weight, dtype=np.float32)
 
-    def sample(self, n=1):  # O(log)
+    def sample(self, n=1, **kwargs):  # O(log)
         _, type_ = self.sample_cluster()
         cluster_buffer = self.batches[type_]
         batch_list = random.choices(cluster_buffer, k=n)
         # Update weights
         if self._prioritization_importance_beta:  # Update weights
-            for batch in zip(batch_list):
+            for batch in batch_list:
                 self.update_beta_weights(batch, type_)
         return batch_list
 
@@ -75,7 +77,7 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
         normalized_priority = super().update_priority(new_batch, idx,
                                                       type_id=type_id)
         type_ = self.get_type(type_id)
-        self.__cluster_priority_list[
+        self.cluster_priority_list[
             type_] = normalized_priority ** self._cluster_prioritization_alpha
 
     def get_cluster_priority(self, segment_tree, min_priority=0):
@@ -84,7 +86,7 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
     def get_cluster_priority_dict(self):
         return dict(map(
             lambda x: (str(self.type_keys[x[0]]), x[1]),
-            enumerate(self.__cluster_priority_list)
+            enumerate(self.cluster_priority_list)
         ))
 
     def add(self, batch, update_prioritisation_weights=False,

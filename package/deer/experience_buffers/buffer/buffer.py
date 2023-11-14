@@ -7,6 +7,7 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
+
 class Buffer(object):
 	# __slots__ = ('cluster_size','global_size','types','batches','type_values','type_keys')
 	

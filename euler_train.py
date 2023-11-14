@@ -48,6 +48,7 @@ default_options = {
     "train_batch_size": 2 ** 10,
     "rollout_fragment_length": 2 ** 8,
     "_disable_preprocessor_api": True,
+    "use_siamese": False,
 }
 
 

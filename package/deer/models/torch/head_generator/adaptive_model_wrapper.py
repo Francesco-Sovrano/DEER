@@ -309,7 +309,8 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             else:
                 for _sub_input_list, _model_list in zip(
                         _input_list, self[_key]):
-                    key_output_list = _model_list(torch.Tensor(_sub_input_list))
+                    key_output_list = _model_list(
+                        torch.Tensor(np.array(_sub_input_list)))
                     key_output = torch.cat(key_output_list, -1) if len(
                         key_output_list) > 1 else key_output_list[0]
                     # key_output = torch.flatten(key_output, start_dim=1)

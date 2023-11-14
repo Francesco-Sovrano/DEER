@@ -155,8 +155,10 @@ class XADQN(DQN):
 		self.siamese_config = None
 		self.optimizer = None
 		self.loss_fn = None
+		self.use_siamese = kwargs.pop("use_siamese", False)
 		super().__init__(*args, **kwargs)
 		self.writer = SummaryWriter()
+
 
 
 	@classmethod
@@ -203,7 +205,7 @@ class XADQN(DQN):
 		# if self.sample_batch_size and self.sample_batch_size > 1:
 		# 	self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
 		self.local_replay_buffer, self.clustering_scheme = (
-			get_clustered_replay_buffer(self.config, siamese=True))
+			get_clustered_replay_buffer(self.config, siamese=self.use_siamese))
 
 		############
 		self.siamese_config = config.get("siamese_config", {})
@@ -218,21 +220,21 @@ class XADQN(DQN):
 				'buffer_size', 1000)),
 		}
 
-		_, env_creator = self._get_env_id_and_creator(config.env, config)
-		tmp_env = env_creator(config["env_config"])
-		embedding_size = self.siamese_config.get('embedding_size', 64)
-		self.siamese_model = SiameseAdaptiveModel(gym.spaces.Dict({
-			f"obs": tmp_env.observation_space,
-			f"new_obs": tmp_env.observation_space,
-			f"actions": tmp_env.action_space,
-			f"rewards": gym.spaces.Box(
-				low=float('-inf'), high=float('inf'),
-				shape=(1,), dtype=np.float32), }), config)
-		self.loss_fn = torch.nn.TripletMarginLoss()
-		self.optimizer = torch.optim.Adam(
-			self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
-		self.siamese_model.to(self.siamese_config.get("device", "cpu"))
-		############
+		if self.use_siamese:
+			_, env_creator = self._get_env_id_and_creator(config.env, config)
+			tmp_env = env_creator(config["env_config"])
+			embedding_size = self.siamese_config.get('embedding_size', 64)
+			self.siamese_model = SiameseAdaptiveModel(gym.spaces.Dict({
+				f"obs": tmp_env.observation_space,
+				f"new_obs": tmp_env.observation_space,
+				f"actions": tmp_env.action_space,
+				f"rewards": gym.spaces.Box(
+					low=float('-inf'), high=float('inf'),
+					shape=(1,), dtype=np.float32), }), config)
+			self.loss_fn = torch.nn.TripletMarginLoss()
+			self.optimizer = torch.optim.Adam(
+				self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
+			self.siamese_model.to(self.siamese_config.get("device", "cpu"))
 		
 		def add_view_requirements(w):
 			for policy in w.policy_map.values():
@@ -292,43 +294,47 @@ class XADQN(DQN):
 				training_step=self.local_replay_buffer.get_train_steps())
 
 			# ############
-			explanation_batch_dict = defaultdict(list)
-			for sub_batch in sub_batch_iter:
-				pol_sub_batch = sub_batch['default_policy']
-				explanatory_label = get_batch_type(pol_sub_batch)
-				explanation_batch_dict[explanatory_label].append(pol_sub_batch)
-				self.positive_buffer.add(pol_sub_batch, explanatory_label)
+			if self.use_siamese:
+				explanation_batch_dict = defaultdict(list)
+				for sub_batch in sub_batch_iter:
+					pol_sub_batch = sub_batch['default_policy']
+					explanatory_label = get_batch_type(pol_sub_batch)
+					explanation_batch_dict[explanatory_label].append(pol_sub_batch)
+					self.positive_buffer.add(pol_sub_batch, explanatory_label)
 
-			if len(explanation_batch_dict.keys()) >= 2: # TODO: check if there is a way to avoid this check
-				anchor_class, negative_class = random.sample(list(
-					explanation_batch_dict.keys()), 2)
-				self.triplet_buffer['anchor'].append(random.choice(
-					explanation_batch_dict[anchor_class]))
-				self.triplet_buffer['positive'].append(random.choice(
-					self.positive_buffer.get_batches(anchor_class)))
-				self.triplet_buffer['negative'].append(random.choice(
-					explanation_batch_dict[negative_class]))
+				if len(explanation_batch_dict.keys()) >= 2: # TODO: check if there is a way to avoid this check
+					anchor_class, negative_class = random.sample(list(
+						explanation_batch_dict.keys()), 2)
+					self.triplet_buffer['anchor'].append(random.choice(
+						explanation_batch_dict[anchor_class]))
+					self.triplet_buffer['positive'].append(random.choice(
+						self.positive_buffer.get_batches(anchor_class)))
+					self.triplet_buffer['negative'].append(random.choice(
+						explanation_batch_dict[negative_class]))
 			# ############
 
 			total_buffer_additions = sum(map(
 				self.local_replay_buffer.add_batch, sub_batch_iter))
 
 		# ############
-		self.siamese_model.train()
-		self.optimizer.zero_grad()  # Clear gradients
+		if self.use_siamese:
+			self.siamese_model.train()
+			self.optimizer.zero_grad()  # Clear gradients
 
-		anchor = self.triplet_buffer['anchor']
-		positive = self.triplet_buffer['positive']
-		negative = self.triplet_buffer['negative']
-		out_a = self.siamese_model(anchor)  # Forward pass
-		out_p = self.siamese_model(positive)  # Forward pass
-		out_n = self.siamese_model(negative)  # Forward pass
+			anchor = self.triplet_buffer['anchor']
+			positive = self.triplet_buffer['positive']
+			negative = self.triplet_buffer['negative']
+			out_a = self.siamese_model(anchor)  # Forward pass
+			out_p = self.siamese_model(positive)  # Forward pass
+			out_n = self.siamese_model(negative)  # Forward pass
 
-		loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
-		loss.backward()  # Backward pass (compute gradients)
-		self.optimizer.step()  # Update parameters
-		# ############
-		self.writer.add_scalar('data/siamese_loss', loss, self._counters[NUM_AGENT_STEPS_SAMPLED])
+			loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
+			loss.backward()  # Backward pass (compute gradients)
+			self.optimizer.step()  # Update parameters
+			self.writer.add_scalar(
+				'data/siamese_loss', loss,
+				self._counters[NUM_AGENT_STEPS_SAMPLED])
+			# ############
 
 		global_vars = {
 			"timestep": self._counters[NUM_ENV_STEPS_SAMPLED],
@@ -340,6 +346,11 @@ class XADQN(DQN):
 			if self.config.count_steps_by == "agent_steps"
 			else NUM_ENV_STEPS_SAMPLED
 		]
+
+		if self.use_siamese:
+			# Update clusters every 10000 steps
+			if cur_ts % 10000 == 0:
+				self.local_replay_buffer.build_clusters(self.siamese_model)
 
 		def update_priorities(samples, info_dict):
 			self.local_replay_buffer.increase_train_steps()
