@@ -48,9 +48,17 @@ default_options = {
     "train_batch_size": 2 ** 10,
     "rollout_fragment_length": 2 ** 8,
     "_disable_preprocessor_api": True,
-    "use_siamese": False,
 }
 
+
+siamese_options = {
+    "siamese_config": {
+        "use_siamese": True,
+        "buffer_size": 1000,
+        "update_frequency": 10000,
+        "embedding_size": 64,
+    }
+}
 
 algorithm_options = {
     "grad_clip": None,  # no need of gradient clipping with huber loss
@@ -130,6 +138,7 @@ def run_training(args):
     CONFIG = default_options
     CONFIG = copy_dict_and_update(CONFIG, xa_default_options)
     CONFIG = copy_dict_and_update(CONFIG, algorithm_options)
+    CONFIG = copy_dict_and_update(CONFIG, siamese_options)
     CONFIG["callbacks"] = CustomEnvironmentCallbacks
 
     # Setup MARL training strategy: centralised or decentralised

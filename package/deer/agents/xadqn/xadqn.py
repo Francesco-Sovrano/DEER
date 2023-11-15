@@ -62,12 +62,17 @@ class PolicySignatureListCollector(SimpleListCollector):
 def init_xa_config(self):
 	self.num_steps_sampled_before_learning_starts = 2**14
 	self.min_train_timesteps_per_iteration = 1
+	self.siamese_config = {
+		'use_siamese': False,
+		'buffer_size': 10000,
+	}
 	self.n_step_annealing_scheduler = {
 		'fn': None, # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
 		'args': {} # the arguments to pass to the function; for more details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
 	}
 	self.n_step_random_sampling = False # a Boolean
 	self.buffer_options = {
+		"use_siamese": False,
 		'prioritized_replay': True,
 		#### MARL
 		'centralised_buffer': True,  # for MARL
@@ -155,7 +160,7 @@ class XADQN(DQN):
 		self.siamese_config = None
 		self.optimizer = None
 		self.loss_fn = None
-		self.use_siamese = kwargs.pop("use_siamese", False)
+		self.use_siamese = None
 		super().__init__(*args, **kwargs)
 		self.writer = SummaryWriter()
 
@@ -204,12 +209,10 @@ class XADQN(DQN):
 		self.sample_batch_size = 1
 		# if self.sample_batch_size and self.sample_batch_size > 1:
 		# 	self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
-		self.local_replay_buffer, self.clustering_scheme = (
-			get_clustered_replay_buffer(self.config, siamese=self.use_siamese))
 
 		############
 		self.siamese_config = config.get("siamese_config", {})
-
+		self.use_siamese = self.siamese_config.get('use_siamese', False)
 		self.positive_buffer = Buffer(global_size=10000, seed=42)
 		self.triplet_buffer = {
 			'anchor': deque(maxlen=self.siamese_config.get(
@@ -219,6 +222,8 @@ class XADQN(DQN):
 			'negative': deque(maxlen=self.siamese_config.get(
 				'buffer_size', 1000)),
 		}
+		self.local_replay_buffer, self.clustering_scheme = (
+			get_clustered_replay_buffer(self.config, siamese=self.use_siamese))
 
 		if self.use_siamese:
 			_, env_creator = self._get_env_id_and_creator(config.env, config)
@@ -254,7 +259,7 @@ class XADQN(DQN):
 			f"a_t": x[ACTIONS],
 			f"r_t": x[REWARDS],
 		}
-		
+
 	@override(DQN)
 	def training_step(self):
 		"""DQN training iteration function.
@@ -275,7 +280,7 @@ class XADQN(DQN):
 
 		# We alternate between storing new samples and sampling and training
 		store_weight, sample_and_train_weight = calculate_rr_weights(self.config)
-
+		siamese_losses = []
 		for _ in range(store_weight):
 			# Sample (MultiAgentBatch) from workers.
 			new_sample_batch = synchronous_parallel_sample(
@@ -334,6 +339,7 @@ class XADQN(DQN):
 			self.writer.add_scalar(
 				'data/siamese_loss', loss,
 				self._counters[NUM_AGENT_STEPS_SAMPLED])
+			siamese_losses.append(loss.item())
 			# ############
 
 		global_vars = {
@@ -349,7 +355,7 @@ class XADQN(DQN):
 
 		if self.use_siamese:
 			# Update clusters every 10000 steps
-			if cur_ts % 10000 == 0:
+			if cur_ts % self.siamese_config["update_frequency"] == 0:
 				self.local_replay_buffer.build_clusters(self.siamese_model)
 
 		def update_priorities(samples, info_dict):
@@ -434,7 +440,8 @@ class XADQN(DQN):
 
 		if self.config.clustering_options['collect_cluster_metrics']:
 			add_buffer_metrics(train_results, self.local_replay_buffer)
-
+			if self.siamese_model:
+				train_results['buffer']['siamese_loss'] = siamese_losses
 		# Return all collected metrics for the iteration.
 		return train_results
 		
