@@ -173,6 +173,18 @@ class AdaptiveModel(nn.Module):
 				nn.Flatten(),
 			)
 			for i,input_shape in enumerate(_input_list)
+		] if _units else [
+			nn.Sequential(
+				Permute((0, 3, 1, 2)),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, stride=4, padding='same'),
+				nn.ReLU(),
+				nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding='same'),
+				nn.ReLU(),
+				nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4, stride=1, padding='same'),
+				nn.ReLU(),
+				nn.Flatten(),
+			)
+			for i,input_shape in enumerate(_input_list)
 		]
 
 	@staticmethod
@@ -184,7 +196,10 @@ class AdaptiveModel(nn.Module):
 			nn.Sequential(
 				nn.Flatten(),
 				nn.Linear(in_features=np.prod(input_shape, dtype='int'), out_features=_units),
-				nn.ReLU(),
+				# nn.ReLU(),
 			)
+			for i,input_shape in enumerate(_input_list)
+		] if _units else [
+			nn.Flatten()
 			for i,input_shape in enumerate(_input_list)
 		]
