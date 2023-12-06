@@ -161,6 +161,8 @@ class AdaptiveModel(nn.Module):
 	def cnn_head_build(_key,_input_list):
 		_splitted_units = _key.split('-')
 		_units = int(_splitted_units[-1]) if len(_splitted_units) > 1 else 0
+		if not _units:
+			logger.warning('cnn_head: no units provided')
 		return [
 			nn.Sequential(
 				Permute((0, 3, 1, 2)),
@@ -176,11 +178,11 @@ class AdaptiveModel(nn.Module):
 		] if _units else [
 			nn.Sequential(
 				Permute((0, 3, 1, 2)),
-				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, stride=4, padding='same'),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, stride=4, padding=4),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding='same'),
+				nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=2),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4, stride=1, padding='same'),
+				nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4, stride=1, padding=1),
 				nn.ReLU(),
 				nn.Flatten(),
 			)
@@ -192,6 +194,8 @@ class AdaptiveModel(nn.Module):
 		_splitted_units = _key.split('-')
 		# print(_splitted_units, _input_list)
 		_units = int(_splitted_units[-1]) if len(_splitted_units) > 1 else 0
+		if not _units:
+			logger.warning('fc_head: no units provided')
 		return [
 			nn.Sequential(
 				nn.Flatten(),
