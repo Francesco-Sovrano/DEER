@@ -24,7 +24,7 @@ class NewComputeTDErrorMixin:
 			self.loss(self.model, None, input_dict)
 
 			# `self.model.td_error` is set within actor_critic_loss call.
-			return self.model.tower_stats["td_error"]
+			return self.model.tower_stats["td_error"].detach().numpy()
 
 		self.compute_td_error = compute_td_error
 

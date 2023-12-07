@@ -8,7 +8,7 @@ class FullWorldSomeAgents_Agent(FullWorldAllAgents_Agent):
 		super().__init__(n_of_other_agents, culture, env_config)
 
 		state_dict = {
-			"fc_junctions-64": gym.spaces.Box( # Junction properties and roads'
+			"fc_junctions": gym.spaces.Box( # Junction properties and roads'
 				low= float('-inf'),
 				high= float('inf'),
 				shape= (
@@ -17,7 +17,7 @@ class FullWorldSomeAgents_Agent(FullWorldAllAgents_Agent):
 				),
 				dtype=np.float32
 			),
-			"fc_this_agent-8": gym.spaces.Box( # Agent features
+			"fc_this_agent": gym.spaces.Box( # Agent features
 				low= 0,
 				high= 1,
 				shape= (
@@ -47,8 +47,8 @@ class FullWorldSomeAgents_Agent(FullWorldAllAgents_Agent):
 		junctions_view = np.array(junctions_view_list, dtype=np.float32)
 		junctions_view = np.concatenate((junctions_view,roads_view), axis=-1)
 		return {
-			"fc_junctions-64": junctions_view,
-			"fc_this_agent-8": np.array(self.get_agent_feature_list(), dtype=np.float32),
+			"fc_junctions": junctions_view,
+			"fc_this_agent": np.array(self.get_agent_feature_list(), dtype=np.float32),
 		}
 
 	# def can_see(self, p):

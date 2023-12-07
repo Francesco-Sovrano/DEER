@@ -498,6 +498,7 @@ class PseudoPrioritizedBuffer(Buffer):
 					), 
 					idx
 				)
+		return normalized_priority
 
 	def get_relative_time(self):
 		return time.time()-self._base_time

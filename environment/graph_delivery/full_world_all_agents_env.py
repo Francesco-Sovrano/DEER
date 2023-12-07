@@ -72,7 +72,7 @@ class FullWorldAllAgents_Agent:
 		self.junction_feature_size = 2 + 1 + 1 + 1 + 1 # junction.pos + junction.is_target + junction.is_source + junction.normalized_target_food + junction.normalized_source_food 
 		self.road_feature_size = 2 + self.obs_road_features # road.end + road.af_features
 		state_dict = {
-			"fc_junctions-64": gym.spaces.Box( # Junction properties and roads'
+			"fc_junctions": gym.spaces.Box( # Junction properties and roads'
 				low= float('-inf'),
 				high= float('inf'),
 				shape= (
@@ -81,7 +81,7 @@ class FullWorldAllAgents_Agent:
 				),
 				dtype=np.float32
 			),
-			"fc_this_agent-8": gym.spaces.Box( # Agent features
+			"fc_this_agent": gym.spaces.Box( # Agent features
 				low= 0,
 				high= 1,
 				shape= (
@@ -91,7 +91,7 @@ class FullWorldAllAgents_Agent:
 			),
 		}
 		if self.n_of_other_agents > 0:
-			state_dict["fc_other_agents-16"] = gym.spaces.Box( # permutation invariant
+			state_dict["fc_other_agents"] = gym.spaces.Box( # permutation invariant
 				low= -1,
 				high= 1,
 				shape= (
@@ -106,7 +106,7 @@ class FullWorldAllAgents_Agent:
 		self._empty_road = np.full(self.road_feature_size, EMPTY_FEATURE_PLACEHOLDER, dtype=np.float32)
 		self._empty_junction_roads = np.full((self.env_config['max_roads_per_junction'], self.road_feature_size), EMPTY_FEATURE_PLACEHOLDER, dtype=np.float32)
 		if self.n_of_other_agents > 0:
-			self._empty_agent = np.full(self.observation_space['fc_other_agents-16'].shape[1:], EMPTY_FEATURE_PLACEHOLDER, dtype=np.float32)
+			self._empty_agent = np.full(self.observation_space['fc_other_agents'].shape[1:], EMPTY_FEATURE_PLACEHOLDER, dtype=np.float32)
 
 	def reset(self, car_point, agent_id, road_network, other_agent_list):
 		self.agent_id = agent_id
@@ -189,12 +189,12 @@ class FullWorldAllAgents_Agent:
 		junctions_view = np.array(junctions_view_list, dtype=np.float32)
 		junctions_view = np.concatenate((junctions_view,roads_view), axis=-1)
 		state_dict = {
-			"fc_junctions-64": junctions_view,
-			"fc_this_agent-8": np.array(self.get_agent_feature_list(), dtype=np.float32),
+			"fc_junctions": junctions_view,
+			"fc_this_agent": np.array(self.get_agent_feature_list(), dtype=np.float32),
 		}
 		if self.n_of_other_agents > 0:
 			agent_neighbourhood_view = self.get_neighbourhood_view(car_point, car_orientation)
-			state_dict["fc_other_agents-16"] = np.array(agent_neighbourhood_view, dtype=np.float32)
+			state_dict["fc_other_agents"] = np.array(agent_neighbourhood_view, dtype=np.float32)
 		return state_dict
 
 	# @property

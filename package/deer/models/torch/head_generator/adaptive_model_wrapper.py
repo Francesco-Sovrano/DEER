@@ -20,6 +20,14 @@ def get_input_recursively(_obs_space, valid_key_fn=lambda x: True):
 		return list(itertools.chain.from_iterable(map(get_input_recursively,_obs_space)))
 	return [_obs_space]
 
+class Permute(nn.Module):
+    def __init__(self, dims):
+        super(Permute, self).__init__()
+        self.dims = dims
+
+    def forward(self, x):
+        return x.permute(self.dims)
+
 class AdaptiveModel(nn.Module):
 	def __init__(self, obs_space, config):
 		super().__init__()
@@ -30,31 +38,32 @@ class AdaptiveModel(nn.Module):
 		self._num_outputs = None
 		self.sub_model_dict = {}
 
-		###### FC
-		fc_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'fc')
-		# print(1, fc_inputs_shape_dict)
-		if fc_inputs_shape_dict:
-			self.sub_model_dict['fc'] = [
-				self.fc_head_build(_key,_input_list)
-				for (_key,_),_input_list in fc_inputs_shape_dict.items()
-			]
+		if isinstance(obs_space, gym.spaces.Dict):
+			###### FC
+			fc_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'fc')
+			# print(1, fc_inputs_shape_dict)
+			if fc_inputs_shape_dict:
+				self.sub_model_dict['fc'] = [
+					self.fc_head_build(_key,_input_list)
+					for (_key,_),_input_list in fc_inputs_shape_dict.items()
+				]
 
-		###### CNN
-		cnn_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'cnn')
-		if cnn_inputs_shape_dict:
-			self.sub_model_dict['cnn'] = [
-				self.cnn_head_build(_key,_input_list)
-				for (_key,_),_input_list in cnn_inputs_shape_dict.items()
-			]
-
-		###### Others
-		other_inputs_list = get_input_recursively(obs_space, lambda k: not k.startswith('fc') and not k.startswith('cnn'))
+			###### CNN
+			cnn_inputs_shape_dict = self.get_inputs_shape_dict(obs_space, 'cnn')
+			if cnn_inputs_shape_dict:
+				self.sub_model_dict['cnn'] = [
+					self.cnn_head_build(_key,_input_list)
+					for (_key,_),_input_list in cnn_inputs_shape_dict.items()
+				]
+			###### Others
+			other_inputs_list = get_input_recursively(obs_space, lambda k: not k.startswith('fc') and not k.startswith('cnn'))
+		else:
+			other_inputs_list = get_input_recursively(obs_space)
 		if other_inputs_list:
 			self.sub_model_dict[''] = [[nn.Flatten()] for l in other_inputs_list]
 		if not self.sub_model_dict.get('cnn',None) and not self.sub_model_dict.get('fc',None):
 			assert other_inputs_list
-			logger.warning('N.B.: Flattening all observations!')	
-		# print(self.sub_model_dict)
+			logger.warning('N.B.: Flattening all observations!')
 
 	def variables(self, as_dict = False):
 		if as_dict:
@@ -117,7 +126,8 @@ class AdaptiveModel(nn.Module):
 
 	@staticmethod
 	def get_inputs_dict(_obs):
-		assert isinstance(_obs, dict)
+		if not isinstance(_obs, dict):
+			_obs = {'': _obs}
 		
 		inputs_dict = {}
 		for k,v in sorted(_obs.items(), key=lambda x:x[0]):
@@ -149,13 +159,30 @@ class AdaptiveModel(nn.Module):
 
 	@staticmethod
 	def cnn_head_build(_key,_input_list):
+		_splitted_units = _key.split('-')
+		_units = int(_splitted_units[-1]) if len(_splitted_units) > 1 else 0
+		if not _units:
+			logger.warning('cnn_head: no units provided')
 		return [
 			nn.Sequential(
-				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, strides=4, padding='same'),
+				Permute((0, 3, 1, 2)),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=_units//2+1, kernel_size=9, stride=4, padding=4),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=32 , out_channels=64, kernel_size=4, strides=2, padding='same'),
+				nn.Conv2d(in_channels=_units//2+1 , out_channels=_units, kernel_size=5, stride=2, padding=2),
 				nn.ReLU(),
-				nn.Conv2d(in_channels=64 , out_channels=64, kernel_size=4, strides=1, padding='same'),
+				nn.Conv2d(in_channels=_units , out_channels=_units, kernel_size=3, stride=1, padding=1),
+				nn.ReLU(),
+				nn.Flatten(),
+			)
+			for i,input_shape in enumerate(_input_list)
+		] if _units else [
+			nn.Sequential(
+				Permute((0, 3, 1, 2)),
+				nn.Conv2d(in_channels=input_shape[-1] , out_channels=32, kernel_size=8, stride=4, padding=4),
+				nn.ReLU(),
+				nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=2),
+				nn.ReLU(),
+				nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4, stride=1, padding=1),
 				nn.ReLU(),
 				nn.Flatten(),
 			)
@@ -165,12 +192,18 @@ class AdaptiveModel(nn.Module):
 	@staticmethod
 	def fc_head_build(_key,_input_list):
 		_splitted_units = _key.split('-')
+		# print(_splitted_units, _input_list)
 		_units = int(_splitted_units[-1]) if len(_splitted_units) > 1 else 0
+		if not _units:
+			logger.warning('fc_head: no units provided')
 		return [
 			nn.Sequential(
 				nn.Flatten(),
 				nn.Linear(in_features=np.prod(input_shape, dtype='int'), out_features=_units),
 				nn.ReLU(),
 			)
+			for i,input_shape in enumerate(_input_list)
+		] if _units else [
+			nn.Flatten()
 			for i,input_shape in enumerate(_input_list)
 		]
