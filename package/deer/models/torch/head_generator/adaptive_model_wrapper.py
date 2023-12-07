@@ -200,7 +200,7 @@ class AdaptiveModel(nn.Module):
 			nn.Sequential(
 				nn.Flatten(),
 				nn.Linear(in_features=np.prod(input_shape, dtype='int'), out_features=_units),
-				# nn.ReLU(),
+				nn.ReLU(),
 			)
 			for i,input_shape in enumerate(_input_list)
 		] if _units else [
