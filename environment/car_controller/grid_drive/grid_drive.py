@@ -30,13 +30,19 @@ class GridDrive(gym.Env):
 	AGENT_CELL_GRID_IDX			= -1
 
 	def get_state(self):
-		state_dict = {
-			"cnn_grid-128": self.grid_view,
-			"fc_neighbours-64": self.grid.neighbour_features(),
+		fc_dict = {
+			# "grid": self.grid_view,
+			"neighbours": self.grid.neighbour_features(), 
 		}
 		if self.obs_car_features > 0:
-			state_dict["fc_agent_extra_properties-64"] = self.grid.agent.binary_features()
-		return state_dict
+			fc_dict["agent_extra_properties"] = self.grid.agent.binary_features()
+		# fc_dict["agent_speed"] = np.array([self.speed/self.MAX_SPEED], dtype=np.float32)
+		return {
+			"cnn": {
+				"grid": self.grid_view,
+			},
+			"fc": fc_dict,
+		}
 
 	def seed(self, seed=None):
 		logger.warning(f"Setting random seed to: {seed}")
@@ -70,15 +76,19 @@ class GridDrive(gym.Env):
 		# Direction (N, S, W, E) + Speed [0-MAX_SPEED]
 		# self.action_space	   = gym.spaces.MultiDiscrete([self.DIRECTIONS, self.MAX_GAPPED_SPEED])
 		self.action_space	   = gym.spaces.Discrete(self.DIRECTIONS*self.MAX_GAPPED_SPEED)
-
-		state_dict = {
-			"cnn_grid-128": gym.spaces.MultiBinary([self.GRID_DIMENSION, self.GRID_DIMENSION, self.obs_road_features+2]), # Features representing the grid + visited cells + current position
-			"fc_neighbours-64": gym.spaces.MultiBinary(self.obs_road_features * self.DIRECTIONS), # Neighbourhood view
+		fc_dict = {
+			# "grid": gym.spaces.MultiBinary([self.GRID_DIMENSION, self.GRID_DIMENSION, self.obs_road_features+2]), # Features representing the grid + visited cells + current position
+			"neighbours": gym.spaces.MultiBinary(self.obs_road_features * self.DIRECTIONS), # Neighbourhood view
 		}
 		if self.obs_car_features > 0:
-			state_dict["fc_agent_extra_properties-64"] = gym.spaces.MultiBinary(self.obs_car_features) # Car features
-
-		self.observation_space = gym.spaces.Dict(state_dict)
+			fc_dict["agent_extra_properties"] = gym.spaces.MultiBinary(self.obs_car_features) # Car features
+		# fc_dict["agent_speed"] = gym.spaces.Box(low=0, high=1.0, shape=(1,), dtype=np.float32)
+		self.observation_space = gym.spaces.Dict({
+			"cnn": gym.spaces.Dict({
+				"grid": gym.spaces.MultiBinary([self.GRID_DIMENSION, self.GRID_DIMENSION, self.obs_road_features+2]), # Features representing the grid + visited cells + current position
+			}),
+			"fc": gym.spaces.Dict(fc_dict),
+		})
 		self.step_counter = 0
 
 	def reset(self):
