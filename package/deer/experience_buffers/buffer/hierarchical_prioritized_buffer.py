@@ -27,14 +27,13 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
 
     def build_clusters(self, embedding_fn):
         self.embedding_fn = embedding_fn
-        buffer_item_list = [element for batch in self.batches for element in
-                            batch]
+        buffer_item_list = [element.policy_batches['default_policy']
+                            for batch in self.batches for element in batch]
         buffer_embedding_iter = self.embedding_fn(buffer_item_list)
         # Create a MeanShift object
-        self.clustering = MeanShift(
-            bandwidth=None)  # If bandwidth is None, it will be estimated
+        self.clustering = MeanShift(bandwidth=None)  # If bandwidth is None, it will be estimated
         buffer_label_list = self.clustering.fit_predict(
-            buffer_embedding_iter).tolist()
+            buffer_embedding_iter.detach().numpy()).tolist()
         self.clean()
         for i, l in zip(buffer_item_list, buffer_label_list):
             self.add(i, type_id=l)

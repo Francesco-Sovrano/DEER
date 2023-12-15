@@ -283,45 +283,48 @@ class SiameseAdaptiveModel(nn.ModuleDict):
 
     def forward(self, x):
         output_list = []
-        inputs_dict = self.get_inputs_dict(x[0])
-        for _key, _input_list in inputs_dict.items():
-            if _key not in self:
-                continue
-            sub_output_list = []
-            if isinstance(self[_key], nn.ModuleDict):
-                # for _sub_input_list, _model_list in zip(
-                #         _input_list, self[_key]['cnn']):
-                key_output_list = self[_key]['cnn'][0][0](
-                    torch.Tensor(_input_list[0][0]))
-                key_output = torch.cat(key_output_list, -1) if len(
-                    key_output_list) > 1 else key_output_list[0]
-                # key_output = torch.flatten(key_output, start_dim=1)
-                sub_output_list.append(key_output)
-
-                # for _sub_input_list, _model_list in zip(
-                #         _input_list, self[_key]['fc']):
-                key_output_list = self[_key]['fc'][0][0](
-                    torch.Tensor(_input_list[1][0]))
-                key_output = torch.cat(key_output_list, -1) if len(
-                    key_output_list) > 1 else key_output_list[0]
-                # key_output = torch.flatten(key_output, start_dim=1)
-                sub_output_list.append(key_output)
-            else:
-                for _sub_input_list, _model_list in zip(
-                        _input_list, self[_key]):
-                    key_output_list = _model_list(
-                        torch.Tensor(np.array(_sub_input_list)))
+        inputs_dicts = [self.get_inputs_dict(x_i) for x_i in x]
+        for inputs_dict in inputs_dicts:
+            out_list = []
+            for _key, _input_list in inputs_dict.items():
+                if _key not in self:
+                    continue
+                sub_output_list = []
+                if isinstance(self[_key], nn.ModuleDict):
+                    # for _sub_input_list, _model_list in zip(
+                    #         _input_list, self[_key]['cnn']):
+                    key_output_list = self[_key]['cnn'][0][0](
+                        torch.Tensor(_input_list[0][0]))
                     key_output = torch.cat(key_output_list, -1) if len(
                         key_output_list) > 1 else key_output_list[0]
                     # key_output = torch.flatten(key_output, start_dim=1)
                     sub_output_list.append(key_output)
-            output_list.append(
-                torch.cat(sub_output_list, -1) if len(sub_output_list) > 1 else
-                sub_output_list[0])
-        output = torch.cat(output_list, -1) if len(output_list) > 1 else \
-            output_list[0]
+
+                    # for _sub_input_list, _model_list in zip(
+                    #         _input_list, self[_key]['fc']):
+                    key_output_list = self[_key]['fc'][0][0](
+                        torch.Tensor(_input_list[1][0]))
+                    key_output = torch.cat(key_output_list, -1) if len(
+                        key_output_list) > 1 else key_output_list[0]
+                    # key_output = torch.flatten(key_output, start_dim=1)
+                    sub_output_list.append(key_output)
+                else:
+                    for _sub_input_list, _model_list in zip(
+                            _input_list, self[_key]):
+                        key_output_list = _model_list(
+                            torch.Tensor(np.array(_sub_input_list)))
+                        key_output = torch.cat(key_output_list, -1) if len(
+                            key_output_list) > 1 else key_output_list[0]
+                        # key_output = torch.flatten(key_output, start_dim=1)
+                        sub_output_list.append(key_output)
+                out_list.append(
+                    torch.cat(sub_output_list, -1) if len(sub_output_list) > 1 else
+                    sub_output_list[0])
+            output = torch.cat(out_list, -1) if len(out_list) > 1 else \
+                out_list[0]
+            output_list.append(output)
         # output = torch.flatten(output, start_dim=1)
-        return output
+        return torch.stack(output_list)
 
     def get_num_outputs(self):
         if self._num_outputs is None:

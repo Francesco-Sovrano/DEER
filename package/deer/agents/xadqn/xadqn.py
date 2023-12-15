@@ -357,6 +357,7 @@ class XADQN(DQN):
 			# Update clusters every 10000 steps
 			if cur_ts % self.siamese_config["update_frequency"] == 0:
 				self.local_replay_buffer.build_clusters(self.siamese_model)
+				print("Built clusters")
 
 		def update_priorities(samples, info_dict):
 			self.local_replay_buffer.increase_train_steps()
