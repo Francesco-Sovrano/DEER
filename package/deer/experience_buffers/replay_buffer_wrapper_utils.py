@@ -322,7 +322,7 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 		if not cluster_overview_size:
 			cluster_overview_size = batch_count
 		else:
-			cluster_overview_size = min(cluster_overview_size,batch_count)
+			cluster_overview_size = min(cluster_overview_size, batch_count)
 
 		with self.replay_timer:
 			batch_list = [{} for _ in range(batch_count)]
@@ -332,7 +332,7 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 				# 	continue
 				# batch_iter = replay_buffer.sample(batch_count)
 				batch_size_list = [cluster_overview_size]*(batch_count//cluster_overview_size)
-				if batch_count%cluster_overview_size > 0:
+				if batch_count % cluster_overview_size > 0:
 					batch_size_list.append(
 						batch_count % cluster_overview_size)
 				self._buffer_lock.acquire_read()
@@ -346,10 +346,12 @@ class LocalReplayBuffer(ParallelIteratorWorker):
 					batch_iter = apply_to_batch_once(update_replayed_fn, batch_iter)
 					self._buffer_lock.release_write()
 				if not self.replay_integral_multi_agent_batches:
-					for i,batch in enumerate(batch_iter):
-						batch_list[i][policy_id] = batch.to_sample_batch()
+					for i, batch in enumerate(batch_iter):
+						if isinstance(batch, MultiAgentBatch):
+							batch = batch.to_sample_batch()
+						batch_list[i][policy_id] = batch
 				else:
-					for i,batch in enumerate(batch_iter):
+					for i, batch in enumerate(batch_iter):
 						# print((buffer_idx+i)%len(buffer_dict_items), buffer_idx, i, len(buffer_dict_items))
 						if (buffer_idx+i)%len(buffer_dict_items) == 0: # every batch has information about every agent, hence we take batch_list/len(buffer_dict_items) batches per buffer with this formula
 							batch_list[i] = batch.to_multi_agent_batch()

@@ -1,8 +1,11 @@
+import ray.rllib
 from ray.rllib.utils.framework import try_import_torch
 import gym
 import numpy as np
 import logging
 import itertools
+from collections.abc import Iterable
+from ray.rllib.policy.sample_batch import SampleBatch
 
 logger = logging.getLogger(__name__)
 torch, nn = try_import_torch()
@@ -240,12 +243,13 @@ class AdaptiveModel(nn.Module):
 
 
 class SiameseAdaptiveModel(nn.ModuleDict):
-    def __init__(self, obs_space, config):
+    def __init__(self, obs_space, embedding_size=64):
         super().__init__()
         if hasattr(obs_space, 'original_space'):
             obs_space = obs_space.original_space
 
         self.obs_space = obs_space
+        self.embedding_size = embedding_size
         self._num_outputs = None
         self.sub_model_dict = {}
 
@@ -298,6 +302,14 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 self[k] = nn.ModuleList([nn.Flatten()
                                          for _ in other_inputs_list])
 
+        in_dim = 514  # TODO: hacky
+        self.last_fc = nn.Sequential(
+            nn.Linear(in_features=in_dim, out_features=256),
+            nn.ReLU(),
+            nn.Linear(in_features=256, out_features=embedding_size),
+            nn.ReLU(),
+        )
+
     def variables(self, as_dict=False):
         if as_dict:
             return self.state_dict()
@@ -305,7 +317,12 @@ class SiameseAdaptiveModel(nn.ModuleDict):
 
     def forward(self, x):
         output_list = []
-        inputs_dicts = [self.get_inputs_dict(x_i) for x_i in x]
+        if isinstance(x, SampleBatch):
+            inputs_dicts = [self.get_inputs_dict(x)]
+        elif isinstance(x, Iterable):
+            inputs_dicts = [self.get_inputs_dict(x_i) for x_i in x]
+        else:
+            inputs_dicts = [self.get_inputs_dict(x)]
         for inputs_dict in inputs_dicts:
             out_list = []
             for _key, _input_list in inputs_dict.items():
@@ -346,7 +363,9 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 out_list[0]
             output_list.append(output)
         # output = torch.flatten(output, start_dim=1)
-        return torch.stack(output_list)
+        inout = torch.stack(output_list)
+        output = self.last_fc(inout)
+        return output
 
     def get_num_outputs(self):
         if self._num_outputs is None:
@@ -389,7 +408,9 @@ class SiameseAdaptiveModel(nn.ModuleDict):
 
     @staticmethod
     def get_inputs_dict(_obs):
-        assert isinstance(_obs, dict)
+        assert isinstance(_obs, dict), (f'SiameseAdaptiveModel only works '
+                                        f'with Dict observation spaces. '
+                                        f'{type(_obs)} is not supported.')
 
         inputs_dict = {}
         for k, v in sorted(_obs.items(), key=lambda x: x[0]):

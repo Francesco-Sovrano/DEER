@@ -43,6 +43,7 @@ from collections import deque, defaultdict
 torch, nn = try_import_torch()
 import random
 import numpy as np
+import time
 from tensorboardX import SummaryWriter
 
 get_batch_infos = lambda x: x[SampleBatch.INFOS][0]
@@ -63,8 +64,10 @@ def init_xa_config(self):
 	self.num_steps_sampled_before_learning_starts = 2**14
 	self.min_train_timesteps_per_iteration = 1
 	self.siamese_config = {
-		'use_siamese': False,
-		'buffer_size': 10000,
+		"use_siamese": True,
+		"buffer_size": 10,
+		"update_frequency": 10000,
+		"embedding_size": 64,
 	}
 	self.n_step_annealing_scheduler = {
 		'fn': None, # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
@@ -72,7 +75,6 @@ def init_xa_config(self):
 	}
 	self.n_step_random_sampling = False # a Boolean
 	self.buffer_options = {
-		"use_siamese": False,
 		'prioritized_replay': True,
 		#### MARL
 		'centralised_buffer': True,  # for MARL
@@ -161,6 +163,7 @@ class XADQN(DQN):
 		self.optimizer = None
 		self.loss_fn = None
 		self.use_siamese = None
+		self.s_buffer_size = None
 		super().__init__(*args, **kwargs)
 		self.writer = SummaryWriter()
 
@@ -211,16 +214,15 @@ class XADQN(DQN):
 		# 	self.replay_batch_size = int(max(1, self.replay_batch_size // self.sample_batch_size))
 
 		############
+		self._counters['last_siamese_update'] = 0
 		self.siamese_config = config.get("siamese_config", {})
 		self.use_siamese = self.siamese_config.get('use_siamese', False)
-		self.positive_buffer = Buffer(global_size=10000, seed=42)
+		self.s_buffer_size = self.siamese_config.get('buffer_size', 10000)
+		self.positive_buffer = Buffer(global_size=self.s_buffer_size, seed=42)
 		self.triplet_buffer = {
-			'anchor': deque(maxlen=self.siamese_config.get(
-				'buffer_size', 1000)),
-			'positive': deque(maxlen=self.siamese_config.get(
-				'buffer_size', 1000)),
-			'negative': deque(maxlen=self.siamese_config.get(
-				'buffer_size', 1000)),
+			'anchor': deque(maxlen=self.s_buffer_size),
+			'positive': deque(maxlen=self.s_buffer_size),
+			'negative': deque(maxlen=self.s_buffer_size),
 		}
 		self.local_replay_buffer, self.clustering_scheme = (
 			get_clustered_replay_buffer(self.config, siamese=self.use_siamese))
@@ -235,7 +237,8 @@ class XADQN(DQN):
 				f"actions": tmp_env.action_space,
 				f"rewards": gym.spaces.Box(
 					low=float('-inf'), high=float('inf'),
-					shape=(1,), dtype=np.float32), }), config)
+					shape=(1,), dtype=np.float32), }),
+				embedding_size=embedding_size,)
 			self.loss_fn = torch.nn.TripletMarginLoss()
 			self.optimizer = torch.optim.Adam(
 				self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
@@ -276,6 +279,7 @@ class XADQN(DQN):
 		Returns:
 			The results dict from executing the training iteration.
 		"""
+		start = time.time()
 		train_results = {}
 
 		# We alternate between storing new samples and sampling and training
@@ -354,10 +358,17 @@ class XADQN(DQN):
 		]
 
 		if self.use_siamese:
-			# Update clusters every 10000 steps
-			if cur_ts % self.siamese_config["update_frequency"] == 0:
-				self.local_replay_buffer.build_clusters(self.siamese_model)
-				print("Built clusters")
+			if cur_ts > self.config.num_steps_sampled_before_learning_starts:
+				last_siamese_update = self._counters['last_siamese_update']
+				if cur_ts - last_siamese_update >= self.siamese_config["update_frequency"]:
+					print(f"Building clusters at timestep {cur_ts}")
+					start_cluster = time.time()
+					print(f"time to start building clusters: {start_cluster-start} seconds")
+					self.local_replay_buffer.build_clusters(self.siamese_model)
+					self._counters['last_siamese_update'] = cur_ts
+					print(f"Clusters built at timestep {cur_ts}")
+					end_cluster = time.time()
+					print(f"Time to build clusters: {end_cluster-start_cluster} seconds")
 
 		def update_priorities(samples, info_dict):
 			self.local_replay_buffer.increase_train_steps()
@@ -395,6 +406,8 @@ class XADQN(DQN):
 
 		# print(cur_ts > self.config.num_steps_sampled_before_learning_starts, cur_ts, self.config.num_steps_sampled_before_learning_starts)
 		if cur_ts > self.config.num_steps_sampled_before_learning_starts:
+			train_start = time.time()
+			print(f"Time to start training: {train_start-start} seconds")
 			for _ in range(sample_and_train_weight):
 				# Sample training batch (MultiAgentBatch) from replay buffer.
 				train_batch = concat_samples(self.local_replay_buffer.replay(
@@ -436,6 +449,8 @@ class XADQN(DQN):
 				with self._timers[SYNCH_WORKER_WEIGHTS_TIMER]:
 					self.workers.sync_weights(global_vars=global_vars)
 
+			train_end = time.time()
+			print(f"Time to train: {train_end-train_start} seconds")
 			if self.n_step_annealing_scheduler:
 				self.update_n_steps()
 

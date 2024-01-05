@@ -3,6 +3,8 @@ from deer.experience_buffers.buffer.pseudo_prioritized_buffer import *
 
 import numpy as np
 from sklearn.cluster import MeanShift
+import torch
+from ray.rllib.policy.sample_batch import MultiAgentBatch
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,12 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
 
     def build_clusters(self, embedding_fn):
         self.embedding_fn = embedding_fn
-        buffer_item_list = [element.policy_batches['default_policy']
+        buffer_item_list = [element
                             for batch in self.batches for element in batch]
+        buffer_item_list = [element.policy_batches['default_policy']
+                            if isinstance(element, MultiAgentBatch)
+                            else element
+                            for element in buffer_item_list]
         buffer_embedding_iter = self.embedding_fn(buffer_item_list)
         # Create a MeanShift object
         self.clustering = MeanShift(bandwidth=None)  # If bandwidth is None, it will be estimated
@@ -90,8 +96,16 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
 
     def add(self, batch, update_prioritisation_weights=False,
             **args):  # O(log)
-        type_id = self.clustering.predict(self.embedding_fn(batch)).tolist()[
-            0] if self.clustering else 0  # add to the same cluster if no clustering is available
+        if self.clustering:
+            if isinstance(batch, MultiAgentBatch):
+                batch = batch.policy_batches['default_policy']
+            embedding = self.embedding_fn(batch)
+            if isinstance(embedding, torch.Tensor):
+                embedding = embedding.detach().numpy()
+            type_id = self.clustering.predict(embedding).tolist()[
+                0]
+        else:
+            type_id = 0  # add to the same cluster if no clustering is available
         return super().add(
             batch, type_id=type_id,
             update_prioritisation_weights=update_prioritisation_weights)
