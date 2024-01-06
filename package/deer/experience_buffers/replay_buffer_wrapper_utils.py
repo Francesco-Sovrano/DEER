@@ -65,7 +65,7 @@ def assign_types(multi_batch, clustering_scheme, batch_fragment_length,
 				for i in range(sub_batch_count)
 			] if len(batch) > batch_fragment_length else [batch]
 			episode_type = clustering_scheme.get_episode_type(sub_batch_list) if with_episode_type else None
-			for i,sub_batch in enumerate(sub_batch_list):
+			for i, sub_batch in enumerate(sub_batch_list):
 				batch_type = clustering_scheme.get_batch_type(
 					sub_batch, 
 					episode_type=episode_type, 
