@@ -35,7 +35,7 @@ from deer.agents.xadqn.xadqn_torch_policy import XADQNTorchPolicy, add_policy_si
 from ray.rllib.utils.schedules.linear_schedule import *
 
 from deer.experience_buffers.buffer.buffer import Buffer
-from deer.models.torch.head_generator.adaptive_model_wrapper import SiameseAdaptiveModel
+from deer.models.torch.head_generator.siamese_model_wrapper import SiameseAdaptiveModel
 import gym
 from ray.rllib.utils.framework import try_import_torch
 from collections import deque, defaultdict
@@ -327,23 +327,25 @@ class XADQN(DQN):
 
 		# ############
 		if self.use_siamese:
-			self.siamese_model.train()
-			self.optimizer.zero_grad()  # Clear gradients
-
 			anchor = self.triplet_buffer['anchor']
 			positive = self.triplet_buffer['positive']
 			negative = self.triplet_buffer['negative']
-			out_a = self.siamese_model(anchor)  # Forward pass
-			out_p = self.siamese_model(positive)  # Forward pass
-			out_n = self.siamese_model(negative)  # Forward pass
 
-			loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
-			loss.backward()  # Backward pass (compute gradients)
-			self.optimizer.step()  # Update parameters
-			self.writer.add_scalar(
-				'data/siamese_loss', loss,
-				self._counters[NUM_AGENT_STEPS_SAMPLED])
-			siamese_losses.append(loss.item())
+			if anchor and positive and negative:
+				self.siamese_model.train()
+				self.optimizer.zero_grad()  # Clear gradients
+
+				out_a = self.siamese_model(anchor)  # Forward pass
+				out_p = self.siamese_model(positive)  # Forward pass
+				out_n = self.siamese_model(negative)  # Forward pass
+
+				loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
+				loss.backward()  # Backward pass (compute gradients)
+				self.optimizer.step()  # Update parameters
+				self.writer.add_scalar(
+					'data/siamese_loss', loss,
+					self._counters[NUM_AGENT_STEPS_SAMPLED])
+				siamese_losses.append(loss.item())
 			# ############
 
 		global_vars = {
