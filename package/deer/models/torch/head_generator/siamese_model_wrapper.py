@@ -62,7 +62,7 @@ class SiameseAdaptiveModel(nn.ModuleDict):
 
         in_dim = 514  # TODO: hacky
         self.last_fc = nn.Sequential(
-            nn.Linear(in_features=in_dim, out_features=256),
+            nn.LazyLinear(out_features=256),
             nn.ReLU(),
             nn.Linear(in_features=256, out_features=embedding_size),
             nn.ReLU(),
@@ -121,7 +121,8 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             output = torch.cat(out_list, -1) if len(out_list) > 1 else out_list[0]
             output_list.append(output)
         # output = torch.flatten(output, start_dim=1)
-        return self.last_fc(torch.stack(output_list))
+        stacked_output = torch.stack(output_list)
+        return self.last_fc(stacked_output)
 
     def get_num_outputs(self):
         if self._num_outputs is None:

@@ -95,9 +95,9 @@ xa_default_options = {
 		'cluster_size': None, # Default None, implying being equal to global_size. Maximum number of batches stored in a cluster (whose number depends on the clustering scheme) of the experience buffer. Every batch has size 'sample_batch_size' (default is 1).
 		'cluster_prioritisation_strategy': 'sum', # Whether to select which cluster to replay in a prioritised fashion -- Options: None; 'sum', 'avg', 'weighted_avg'.
 		'cluster_level_weighting': True, # Whether to use cluster-level information to compute importance weights rather than the whole buffer.
-		'clustering_xi': 2,
+		'clustering_xi': 4,
 		#################
-		'prioritized_drop_probability': 1, # Probability of dropping the batch having the lowest priority in the buffer instead of the one having the lowest timestamp. In TD3 default is 0.
+		'prioritized_drop_probability': 0, # Probability of dropping the batch having the lowest priority in the buffer instead of the one having the lowest timestamp. In TD3 default is 0.
 		'global_distribution_matching': False, # Whether to use a random number rather than the batch priority during prioritised dropping. If True then: At time t the probability of any experience being the max experience is 1/t regardless of when the sample was added, guaranteeing that (when prioritized_drop_probability==1) at any given time the sampled experiences will approximately match the distribution of all samples seen so far. 
 		'stationarity_window_size': None, # If lower than float('inf') and greater than 0, then the stationarity_window_size W is used to guarantee that every W training-steps the buffer is emptied from old state transitions.
 		'stationarity_smoothing_factor': 1, # A number >= 1, where 1 means no smoothing. The larger this number, the smoother the transition from a stationarity stage to the next one. This should help avoiding experience buffers saturated by one single episode during a stage transition. The optimal value should be equal to ceil(HORIZON*number_of_agents/EXPERIENCE_BUFFER_SIZE)*stationarity_window_size.
@@ -106,17 +106,17 @@ xa_default_options = {
 	},
 	"clustering_options": {
 		'clustering_scheme': None,
-		# 'clustering_scheme': [
-		# 	'Why',
-		# 	# 'Who',
-		# 	'How_Well',
-		# 	# 'How_Fair',
-		# 	# 'Where',
-		# 	# 'What',
-		# 	# 'How_Many'
-		# 	# 'UWho',
-		# 	# 'UWhich_CoopStrategy',
-		# ],
+		'clustering_scheme': [
+			'Why',
+			# 'Who',
+			'How_Well',
+			# 'How_Fair',
+			# 'Where',
+			# 'What',
+			# 'How_Many'
+			# 'UWho',
+			# 'UWhich_CoopStrategy',
+		],
 		"clustering_scheme_options": {
 			"n_clusters": {
 				"who": 4,
@@ -137,6 +137,15 @@ xa_default_options = {
 		"ratio_of_samples_from_unclustered_buffer": 0, # 0 for no, 1 for full. Whether to sample in a randomised fashion from both a non-prioritised buffer of most recent elements and the XA prioritised buffer.
 	},
 }
+siamese_options = {
+    "siamese_config": {
+        "use_siamese": True,
+        "buffer_size": 1000,
+        "update_frequency": 10000,
+        "embedding_size": 16,
+    },
+    "_disable_preprocessor_api": True,
+}
 
 def copy_dict_and_update(d,u):
 	new_dict = copy.deepcopy(d)
@@ -153,6 +162,7 @@ def copy_dict_and_update_with_key(d,k,u):
 CONFIG = default_options
 CONFIG = copy_dict_and_update(CONFIG, xa_default_options)
 CONFIG = copy_dict_and_update(CONFIG, algorithm_options)
+CONFIG = copy_dict_and_update(CONFIG, siamese_options)
 CONFIG["callbacks"] = CustomEnvironmentCallbacks
 
 # Setup MARL training strategy: centralised or decentralised
