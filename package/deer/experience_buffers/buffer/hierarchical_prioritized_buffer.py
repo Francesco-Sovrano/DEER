@@ -42,6 +42,7 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
             buffer_embedding_iter.detach().numpy()).tolist()
         self.clean()
         for i, l in zip(buffer_item_list, buffer_label_list):
+            get_batch_infos(i)['batch_index'] = {}
             self.add(i, type_id=l)
 
     # self._cluster_labels = ms.labels_
@@ -79,11 +80,9 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
         pass
 
     def update_priority(self, new_batch, idx, type_id=0):  # O(log)
-        normalized_priority = super().update_priority(new_batch, idx,
-                                                      type_id=type_id)
+        normalized_priority = super().update_priority(new_batch, idx, type_id=type_id)
         type_ = self.get_type(type_id)
-        self.cluster_priority_list[
-            type_] = normalized_priority ** self._cluster_prioritization_alpha
+        self.cluster_priority_list[type_] = normalized_priority ** self._cluster_prioritization_alpha
 
     def get_cluster_priority(self, segment_tree, min_priority=0):
         assert True, 'This function is not well-defined'

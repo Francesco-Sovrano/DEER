@@ -71,14 +71,11 @@ class PseudoPrioritizedBuffer(Buffer):
 		logger.warning(f'Building new buffer with: prioritized_drop_probability={prioritized_drop_probability}, global_distribution_matching={global_distribution_matching}, stationarity_window_size={stationarity_window_size}, stationarity_smoothing_factor={stationarity_smoothing_factor}')
 		super(PseudoPrioritizedBuffer, self).__init__(
 			cluster_size=cluster_size, global_size=global_size, seed=seed)
+		# self.priority_stats = RunningStats(window_size=self.global_size)
 		self._it_capacity = 1
 		while self._it_capacity < self.cluster_size:
 			self._it_capacity *= 2
-		# self.priority_stats = RunningStats(window_size=self.global_size)
 		self._base_time = time.time()
-		self.min_cluster_size = 1
-		self.max_cluster_size = self.cluster_size
-		self.__historical_min_priority = float('inf')
 
 	def is_weighting_expected_values(self):
 		return self._prioritization_importance_beta
@@ -89,6 +86,9 @@ class PseudoPrioritizedBuffer(Buffer):
 	
 	def clean(self): # O(1)
 		super().clean()
+		self.min_cluster_size = 1
+		self.max_cluster_size = self.cluster_size
+		self.__historical_min_priority = float('inf')
 		self._sample_priority_tree = []
 		if self._prioritized_drop_probability > 0:
 			self._drop_priority_tree = []
@@ -463,12 +463,9 @@ class PseudoPrioritizedBuffer(Buffer):
 	
 	def update_priority(self, new_batch, idx, type_id=0): # O(log)
 		type_ = self.get_type(type_id)
-		if type_ is None:
-			return
-		if idx >= len(self.batches[type_]):
-			return
-		if get_batch_uid(new_batch) != get_batch_uid(self.batches[type_][idx]):
-			return
+		assert type_ != None, f'invalid type ({type_}) not in {self.types}'
+		assert idx < len(self.batches[type_]), f'invalid idx ({idx}) should be lower than {len(self.batches[type_])}'
+		assert get_batch_uid(new_batch) == get_batch_uid(self.batches[type_][idx]), f'batch uid {get_batch_uid(new_batch)} != {get_batch_uid(self.batches[type_][idx])}'
 		# for k,v in self.batches[type_][idx].data.items():
 		# 	if not np.array_equal(new_batch[k],v):
 		# 		print(k,v,new_batch[k])

@@ -302,7 +302,7 @@ class XADQN(DQN):
 				with_episode_type=self.config.clustering_options['cluster_with_episode_type'],
 				training_step=self.local_replay_buffer.get_train_steps())
 
-			# ############
+			############
 			if self.use_siamese:
 				explanation_batch_dict = defaultdict(list)
 				for sub_batch in sub_batch_iter:
@@ -320,33 +320,9 @@ class XADQN(DQN):
 						self.positive_buffer.get_batches(anchor_class)))
 					self.triplet_buffer['negative'].append(random.choice(
 						explanation_batch_dict[negative_class]))
-			# ############
+			############
 
-			total_buffer_additions = sum(map(
-				self.local_replay_buffer.add_batch, sub_batch_iter))
-
-		# ############
-		if self.use_siamese:
-			anchor = self.triplet_buffer['anchor']
-			positive = self.triplet_buffer['positive']
-			negative = self.triplet_buffer['negative']
-
-			if anchor and positive and negative:
-				self.siamese_model.train()
-				self.optimizer.zero_grad()  # Clear gradients
-
-				out_a = self.siamese_model(anchor)  # Forward pass
-				out_p = self.siamese_model(positive)  # Forward pass
-				out_n = self.siamese_model(negative)  # Forward pass
-
-				loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
-				loss.backward()  # Backward pass (compute gradients)
-				self.optimizer.step()  # Update parameters
-				self.writer.add_scalar(
-					'data/siamese_loss', loss,
-					self._counters[NUM_AGENT_STEPS_SAMPLED])
-				siamese_losses.append(loss.item())
-			# ############
+			total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
 		global_vars = {
 			"timestep": self._counters[NUM_ENV_STEPS_SAMPLED],
@@ -358,19 +334,6 @@ class XADQN(DQN):
 			if self.config.count_steps_by == "agent_steps"
 			else NUM_ENV_STEPS_SAMPLED
 		]
-
-		if self.use_siamese:
-			if cur_ts > self.config.num_steps_sampled_before_learning_starts:
-				last_siamese_update = self._counters['last_siamese_update']
-				if cur_ts - last_siamese_update >= self.siamese_config["update_frequency"]:
-					print(f"Building clusters at timestep {cur_ts}")
-					start_cluster = time.time()
-					print(f"time to start building clusters: {start_cluster-start} seconds")
-					self.local_replay_buffer.build_clusters(self.siamese_model)
-					self._counters['last_siamese_update'] = cur_ts
-					print(f"Clusters built at timestep {cur_ts}")
-					end_cluster = time.time()
-					print(f"Time to build clusters: {end_cluster-start_cluster} seconds")
 
 		def update_priorities(samples, info_dict):
 			self.local_replay_buffer.increase_train_steps()
@@ -450,6 +413,40 @@ class XADQN(DQN):
 				# on all remote workers.
 				with self._timers[SYNCH_WORKER_WEIGHTS_TIMER]:
 					self.workers.sync_weights(global_vars=global_vars)
+
+			############
+			if self.use_siamese:
+				anchor = self.triplet_buffer['anchor']
+				positive = self.triplet_buffer['positive']
+				negative = self.triplet_buffer['negative']
+
+				if anchor and positive and negative:
+					self.siamese_model.train()
+					self.optimizer.zero_grad()  # Clear gradients
+
+					out_a = self.siamese_model(anchor)  # Forward pass
+					out_p = self.siamese_model(positive)  # Forward pass
+					out_n = self.siamese_model(negative)  # Forward pass
+
+					loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
+					loss.backward()  # Backward pass (compute gradients)
+					self.optimizer.step()  # Update parameters
+					self.writer.add_scalar(
+						'data/siamese_loss', loss,
+						self._counters[NUM_AGENT_STEPS_SAMPLED])
+					siamese_losses.append(loss.item())
+
+					last_siamese_update = self._counters['last_siamese_update']
+					if cur_ts - last_siamese_update >= self.siamese_config["update_frequency"]:
+						print(f"Building clusters at timestep {cur_ts}")
+						start_cluster = time.time()
+						print(f"time to start building clusters: {start_cluster-start} seconds")
+						self.local_replay_buffer.build_clusters(self.siamese_model)
+						self._counters['last_siamese_update'] = cur_ts
+						print(f"Clusters built at timestep {cur_ts}")
+						end_cluster = time.time()
+						print(f"Time to build clusters: {end_cluster-start_cluster} seconds")
+			############
 
 			train_end = time.time()
 			print(f"Time to train: {train_end-train_start} seconds")
