@@ -447,6 +447,22 @@ class SiameseAdaptiveModel(nn.ModuleDict):
         return nn.ModuleList([
             nn.Sequential(
                 Permute((0, 3, 1, 2)),
+                nn.Conv2d(in_channels=input_shape[-1],
+                          out_channels=_units // 2 + 1, kernel_size=9,
+                          stride=4, padding=4),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=_units // 2 + 1, out_channels=_units,
+                          kernel_size=5, stride=2, padding=2),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=_units, out_channels=_units,
+                          kernel_size=3, stride=1, padding=1),
+                nn.ReLU(),
+                nn.Flatten(),
+            )
+            for i, input_shape in enumerate(_input_list)
+        ] if _units else [
+            nn.Sequential(
+                Permute((0, 3, 1, 2)),
                 nn.Conv2d(in_channels=input_shape[-1], out_channels=32,
                           kernel_size=8, stride=4, padding=4),
                 nn.ReLU(),
@@ -459,22 +475,6 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 nn.Flatten(),
             )
             for i, input_shape in enumerate(_input_list)
-
-            # nn.Sequential(
-            #     Permute((0, 3, 1, 2)),
-            #     nn.Conv2d(in_channels=input_shape[-1],
-            #               out_channels=_units // 2 + 1, kernel_size=9,
-            #               stride=4, padding=4),
-            #     nn.ReLU(),
-            #     nn.Conv2d(in_channels=_units // 2 + 1, out_channels=_units,
-            #               kernel_size=5, stride=2, padding=2),
-            #     nn.ReLU(),
-            #     nn.Conv2d(in_channels=_units, out_channels=_units,
-            #               kernel_size=3, stride=1, padding=1),
-            #     nn.ReLU(),
-            #     nn.Flatten(),
-            # )
-            # for i, input_shape in enumerate(_input_list)
         ])
 
     @staticmethod
@@ -489,5 +489,8 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                           out_features=_units),
                 nn.ReLU(),
             )
+            for i, input_shape in enumerate(_input_list)
+        ] if _units else [
+            nn.Flatten()
             for i, input_shape in enumerate(_input_list)
         ])
