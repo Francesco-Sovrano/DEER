@@ -44,7 +44,6 @@ torch, nn = try_import_torch()
 import random
 import numpy as np
 import time
-from tensorboardX import SummaryWriter
 
 get_batch_infos = lambda x: x[SampleBatch.INFOS][0]
 get_batch_indexes = lambda x: get_batch_infos(x)['batch_index']
@@ -165,7 +164,6 @@ class XADQN(DQN):
 		self.use_siamese = None
 		self.s_buffer_size = None
 		super().__init__(*args, **kwargs)
-		self.writer = SummaryWriter()
 
 
 
@@ -239,7 +237,8 @@ class XADQN(DQN):
 					low=float('-inf'), high=float('inf'),
 					shape=(1,), dtype=np.float32), }),
 				embedding_size=embedding_size,)
-			self.loss_fn = torch.nn.TripletMarginLoss()
+			self.loss_fn = torch.nn.TripletMarginLoss(
+				self.siamese_config.get('margin', 1.0), p=2)
 			self.optimizer = torch.optim.Adam(
 				self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
 			self.siamese_model.to(self.siamese_config.get("device", "cpu"))
@@ -421,6 +420,9 @@ class XADQN(DQN):
 				negative = self.triplet_buffer['negative']
 
 				if anchor and positive and negative:
+					if 'siamese' not in train_results:
+						train_results['siamese'] = {}
+
 					self.siamese_model.train()
 					self.optimizer.zero_grad()  # Clear gradients
 
@@ -431,32 +433,35 @@ class XADQN(DQN):
 					loss = self.loss_fn(out_a, out_p, out_n)  # Compute the loss
 					loss.backward()  # Backward pass (compute gradients)
 					self.optimizer.step()  # Update parameters
-					self.writer.add_scalar(
-						'data/siamese_loss', loss,
-						self._counters[NUM_AGENT_STEPS_SAMPLED])
-					siamese_losses.append(loss.item())
+					train_results['siamese']['siamese_loss'] = loss.item()
 
 					last_siamese_update = self._counters['last_siamese_update']
 					if cur_ts - last_siamese_update >= self.siamese_config["update_frequency"]:
-						print(f"Building clusters at timestep {cur_ts}")
+						self.siamese_model.eval()
 						start_cluster = time.time()
+						print(f"Building clusters at timestep {cur_ts}")
 						print(f"time to start building clusters: {start_cluster-start} seconds")
+
 						self.local_replay_buffer.build_clusters(self.siamese_model)
 						self._counters['last_siamese_update'] = cur_ts
-						print(f"Clusters built at timestep {cur_ts}")
+
 						end_cluster = time.time()
-						print(f"Time to build clusters: {end_cluster-start_cluster} seconds")
+						print(f"Clusters built at timestep {cur_ts}")
+						print(f"Time spent building clusters: {end_cluster-start_cluster} seconds")
+
+						for name, buffer in self.local_replay_buffer.replay_buffers.items():
+							if name not in train_results['siamese']:
+								train_results['siamese'][name] = {}
+							train_results['siamese'][name]['num_clusters'] = len(buffer.get_available_clusters())
 			############
 
 			train_end = time.time()
-			print(f"Time to train: {train_end-train_start} seconds")
+			print(f"Time spent training: {train_end-train_start} seconds")
 			if self.n_step_annealing_scheduler:
 				self.update_n_steps()
 
 		if self.config.clustering_options['collect_cluster_metrics']:
 			add_buffer_metrics(train_results, self.local_replay_buffer)
-			if self.siamese_model:
-				train_results['buffer']['siamese_loss'] = siamese_losses
 		# Return all collected metrics for the iteration.
 		return train_results
 		

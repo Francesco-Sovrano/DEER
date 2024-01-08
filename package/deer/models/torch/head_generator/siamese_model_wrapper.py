@@ -1,5 +1,6 @@
 from deer.models.torch.head_generator.adaptive_model_wrapper import *
 
+
 class SiameseAdaptiveModel(nn.ModuleDict):
     def __init__(self, obs_space, embedding_size=64):
         super().__init__()
@@ -60,7 +61,6 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 self[k] = nn.ModuleList([nn.Flatten()
                                          for _ in other_inputs_list])
 
-        in_dim = 514  # TODO: hacky
         self.last_fc = nn.Sequential(
             nn.LazyLinear(out_features=256),
             nn.ReLU(),

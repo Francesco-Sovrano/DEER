@@ -40,23 +40,24 @@ default_options = {
         "custom_model": "adaptive_multihead_network",
     },
     "no_done_at_end": False,
-    "gamma": 0.999, 
+    "gamma": 0.99,
     "seed": 42,
     # "train_batch_size": 2 ** 8,
     "min_train_timesteps_per_iteration": 1,
     # "batch_mode": "complete_episodes",
-    "train_batch_size": 2 ** 10,
-    "rollout_fragment_length": 2 ** 8,
+    "train_batch_size": 2 ** 8,
+    "rollout_fragment_length": 2 ** 6,
     "_disable_preprocessor_api": True,
 }
 
 
 siamese_options = {
     "siamese_config": {
-        "use_siamese": True,
-        "buffer_size": 1000,
-        "update_frequency": 10000,
-        "embedding_size": 16,
+        "use_siamese": False,
+        "buffer_size": 10000,
+        "update_frequency": 5000,
+        "embedding_size": 8,
+        "loss_margin": 5,
     }
 }
 
