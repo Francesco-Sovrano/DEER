@@ -39,8 +39,9 @@ def copy_dict_and_update_with_key(d,k,u):
 ############################################################################################
 ############################################################################################
 
-training_steps = 2**16
+training_steps = 2**25
 train_batch_size = 2**8
+experience_buffer_size = 2**14
 stop_training_after_n_step = training_steps*train_batch_size
 save_n_checkpoints = 1
 save_gifs = True
@@ -48,7 +49,7 @@ episodes_per_test = 10
 test_every_n_step = int(np.ceil(stop_training_after_n_step/save_n_checkpoints))
 centralised_training = True
 
-get_experiment_id = lambda *arg: f"deer4nstep-task_{'-'.join(map(str,arg))}"
+get_experiment_id = lambda *arg: f"deer4nstep-test_{'-'.join(map(str,arg))}"
 
 config_list = []
 
@@ -83,7 +84,7 @@ xa_default_options = {
 	"buffer_options": {
 		"prioritized_replay": True, # Whether to replay batches with the highest priority/importance/relevance for the agent.
 		"centralised_buffer": True, # for MARL
-		# 'global_size': EXPERIENCE_BUFFER_SIZE, # Maximum number of batches stored in the experience buffer. Every batch has size 'rollout_fragment_length' (default is 50).
+		'global_size': experience_buffer_size, # Maximum number of batches stored in the experience buffer. Every batch has size 'rollout_fragment_length' (default is 50).
 		'priority_id': 'td_errors',
 		'priority_lower_limit': 0,
 		'priority_aggregation_fn': 'np.mean', # A reduction that takes as input a list of numbers and returns a number representing a batch priority.
@@ -140,110 +141,112 @@ xa_default_options = {
 default_experiment_options = default_options
 default_experiment_options = copy_dict_and_update(default_experiment_options, xa_default_options)
 
-############################################################################################
-############################################################################################
+# ############################################################################################
+# ############################################################################################
 
-default_algorithm = 'DQN'
-algorithm_options = {
-	"framework": "torch",
-	"model": {
-		"custom_model": "adaptive_multihead_network",
-		# "custom_model_config": {
-		# 	"comm_range": VISIBILITY_RADIUS,
-		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
-		# },
-	},
+# default_algorithm = 'DQN'
+# algorithm_options = {
+# 	"framework": "torch",
+# 	"model": {
+# 		"custom_model": "adaptive_multihead_network",
+# 		# "custom_model_config": {
+# 		# 	"comm_range": VISIBILITY_RADIUS,
+# 		# 	"add_nonstationarity_correction": False, # Experience replay in MARL may suffer from non-stationarity. To avoid this issue a solution is to condition each agent’s value function on a fingerprint that disambiguates the age of the data sampled from the replay memory. To stabilise experience replay, it should be sufficient if each agent’s observations disambiguate where along this trajectory the current training sample originated from. # cit. [2017]Stabilising Experience Replay for Deep Multi-Agent Reinforcement Learning
+# 		# },
+# 	},
 	
-	# "horizon": 2**5,
+# 	# "horizon": 2**5,
 
-	"td_error_loss_fn": "mse",
-	"grad_clip": 2,
-	"lr": 5e-4,
-	"hiddens": [256,256],
-	"target_network_update_freq": 500,
+# 	"td_error_loss_fn": "mse",
+# 	"grad_clip": 2,
+# 	"lr": 5e-4,
+# 	"hiddens": [256,256],
+# 	"target_network_update_freq": 500,
 
-	"dueling": True,
-	"double_q": True,
-	"noisy": True,
-	"sigma0": 0.5,
-	# "num_atoms": 51,
-	# "v_max": 2**5,
-	# "v_min": -1,
+# 	"dueling": True,
+# 	"double_q": True,
+# 	"noisy": True,
+# 	"sigma0": 0.5,
+# 	# "num_atoms": 51,
+# 	# "v_max": 2**5,
+# 	# "v_min": -1,
 
-	# "n_step": 3,
-	# "n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
-	# "n_step_annealing_scheduler": {
-	# 	'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
-	# 	'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
-	# 		'schedule_timesteps': TRAINING_STEPS//2,
-	# 		'final_p': 1, # final n-step
-	# 		'framework': None,
-	# 		'initial_p': 10 # initial n-step
-	# 	}
-	# },
-}
-default_environment_list = [
-	'GridDrive-Medium', 
-	'GridDrive-Hard'
-]
-number_of_agents_list = [1]
+# 	# "n_step": 3,
+# 	# "n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
+# 	# "n_step_annealing_scheduler": {
+# 	# 	'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+# 	# 	'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+# 	# 		'schedule_timesteps': TRAINING_STEPS//2,
+# 	# 		'final_p': 1, # final n-step
+# 	# 		'framework': None,
+# 	# 		'initial_p': 10 # initial n-step
+# 	# 	}
+# 	# },
+# }
+# default_environment_list = [
+# 	'GridDrive-Medium', 
+# 	'GridDrive-Hard'
+# ]
+# number_of_agents_list = [1]
 
 
-for default_environment in default_environment_list:
-	for num_agents in number_of_agents_list:
-		# Experiment 1
-		experiment1_options = default_experiment_options
-		experiment1_options = copy_dict_and_update(experiment1_options, algorithm_options)
-		experiment1_options = copy_dict_and_update(experiment1_options, {
-			"n_step": 1,
-		})
-		# Experiment 2
-		experiment2_options = copy_dict_and_update(experiment1_options, {
-			"n_step": 10,
-		})
-		# Experiment 3
-		experiment3_options = copy_dict_and_update(experiment1_options, {
-			"n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
-			"n_step_annealing_scheduler": {
-				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
-				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
-					'schedule_timesteps': training_steps//2,
-					'final_p': 1, # final n-step
-					'framework': None,
-					'initial_p': 10 # initial n-step
-				}
-			},
-		})
-		# Experiment 4
-		experiment4_options = copy_dict_and_update(experiment1_options, {
-			"n_step_sampling_procedure": None, # either None or 'random_sampling'
-			"n_step_annealing_scheduler": {
-				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
-				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
-					'schedule_timesteps': training_steps//2,
-					'final_p': 1, # final n-step
-					'framework': None,
-					'initial_p': 10 # initial n-step
-				}
-			},
-		})
-		## build experiments
-		eid = get_experiment_id(default_environment.replace('/','_'), num_agents)
-		config_list += [
-			#
-			('XA'+default_algorithm, default_environment, f'exp1-{default_algorithm}-{eid}', num_agents, experiment1_options),
-			#
-			('XA'+default_algorithm, default_environment, f'exp2-{default_algorithm}-{eid}', num_agents, experiment2_options),
-			#
-			('XA'+default_algorithm, default_environment, f'exp3-{default_algorithm}-{eid}', num_agents, experiment3_options),
-			#
-			('XA'+default_algorithm, default_environment, f'exp4-{default_algorithm}-{eid}', num_agents, experiment4_options),
-		]
+# for default_environment in default_environment_list:
+# 	for num_agents in number_of_agents_list:
+# 		# Experiment 1
+# 		experiment1_options = default_experiment_options
+# 		experiment1_options = copy_dict_and_update(experiment1_options, algorithm_options)
+# 		experiment1_options = copy_dict_and_update(experiment1_options, {
+# 			"n_step": 1,
+# 		})
+# 		# Experiment 2
+# 		experiment2_options = copy_dict_and_update(experiment1_options, {
+# 			"n_step": 10,
+# 		})
+# 		# Experiment 3
+# 		experiment3_options = copy_dict_and_update(experiment1_options, {
+# 			"n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
+# 			"n_step_annealing_scheduler": {
+# 				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+# 				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+# 					'schedule_timesteps': training_steps//2,
+# 					'final_p': 1, # final n-step
+# 					'framework': None,
+# 					'initial_p': 10 # initial n-step
+# 				}
+# 			},
+# 		})
+# 		# Experiment 4
+# 		experiment4_options = copy_dict_and_update(experiment1_options, {
+# 			"n_step_sampling_procedure": None, # either None or 'random_sampling'
+# 			"n_step_annealing_scheduler": {
+# 				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+# 				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+# 					'schedule_timesteps': training_steps//2,
+# 					'final_p': 1, # final n-step
+# 					'framework': None,
+# 					'initial_p': 10 # initial n-step
+# 				}
+# 			},
+# 		})
+# 		## build experiments
+# 		eid = get_experiment_id(default_environment.replace('/','_'), num_agents)
+# 		config_list += [
+# 			#
+# 			('XA'+default_algorithm, default_environment, f'exp1-{default_algorithm}-{eid}', num_agents, experiment1_options),
+# 			#
+# 			('XA'+default_algorithm, default_environment, f'exp2-{default_algorithm}-{eid}', num_agents, experiment2_options),
+# 			#
+# 			('XA'+default_algorithm, default_environment, f'exp3-{default_algorithm}-{eid}', num_agents, experiment3_options),
+# 			#
+# 			('XA'+default_algorithm, default_environment, f'exp4-{default_algorithm}-{eid}', num_agents, experiment4_options),
+# 		]
 
 ############################################################################################
 ############################################################################################
 
 default_algorithm = 'SAC'
+# default_algorithm = 'TD3'
+# default_algorithm = 'DDPG'
 algorithm_options = {
 	"framework": "torch",
 	"model": {
@@ -255,68 +258,95 @@ algorithm_options = {
 	},
 	
 	# "horizon": 2**5,
-	# "gamma": 0.999, # We use an higher gamma to extend the MDP's horizon; optimal agency on GraphDrive requires a longer horizon.
-	"tau": 1e-4,
+	"gamma": 0.999, # We use an higher gamma to extend the MDP's horizon; optimal agency on GraphDrive requires a longer horizon.
+	# "tau": 1e-4,
 
-	"grad_clip": 2,
+	# "grad_clip": 2,
 }
 default_environment_list = [
+	'GraphDrive-Easy',
 	'GraphDrive-Medium', 
-	'GraphDrive-Hard'
+	'GraphDrive-Hard',
+	# 'Ant-v4',
+	# 'HalfCheetah-v4',
+	# 'Humanoid-v4',
+	# # 'Walker2d-v4',
+	# 'Swimmer-v4',
+	# 'Hopper-v4',
 ]
 number_of_agents_list = [1]
+tau_list = [1e-4,1e-3]
 
 
 for default_environment in default_environment_list:
 	for num_agents in number_of_agents_list:
-		# Experiment 1
-		experiment1_options = default_experiment_options
-		experiment1_options = copy_dict_and_update(experiment1_options, algorithm_options)
-		experiment1_options = copy_dict_and_update(experiment1_options, {
-			"n_step": 1,
-		})
-		# Experiment 2
-		experiment2_options = copy_dict_and_update(experiment1_options, {
-			"n_step": 10,
-		})
-		# Experiment 3
-		experiment3_options = copy_dict_and_update(experiment1_options, {
-			"n_step_sampling_procedure": 'random_sampling', # either None or 'random_sampling'
-			"n_step_annealing_scheduler": {
-				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
-				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
-					'schedule_timesteps': training_steps//2,
-					'final_p': 1, # final n-step
-					'framework': None,
-					'initial_p': 10 # initial n-step
-				}
-			},
-		})
-		# Experiment 4
-		experiment4_options = copy_dict_and_update(experiment1_options, {
-			"n_step_sampling_procedure": None, # either None or 'random_sampling'
-			"n_step_annealing_scheduler": {
-				'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
-				'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
-					'schedule_timesteps': training_steps//2,
-					'final_p': 1, # final n-step
-					'framework': None,
-					'initial_p': 10 # initial n-step
-				}
-			},
-		})
-		## build experiments
-		eid = get_experiment_id(default_environment.replace('/','_'), num_agents)
-		config_list += [
-			#
-			('XA'+default_algorithm, default_environment, f'exp1-{default_algorithm}-{eid}', num_agents, experiment1_options),
-			#
-			('XA'+default_algorithm, default_environment, f'exp2-{default_algorithm}-{eid}', num_agents, experiment2_options),
-			#
-			('XA'+default_algorithm, default_environment, f'exp3-{default_algorithm}-{eid}', num_agents, experiment3_options),
-			#
-			('XA'+default_algorithm, default_environment, f'exp4-{default_algorithm}-{eid}', num_agents, experiment4_options),
-		]
+		for tau in tau_list:
+			# Experiment 1
+			experiment1_options = default_experiment_options
+			experiment1_options = copy_dict_and_update(experiment1_options, {
+				"tau": tau,
+			})
+			experiment1_options = copy_dict_and_update(experiment1_options, algorithm_options)
+			experiment1_options = copy_dict_and_update(experiment1_options, {
+				"n_step": 1,
+			})
+			# Experiment 2
+			experiment2_options = copy_dict_and_update(experiment1_options, {
+				"n_step": 5,
+			})
+			# Experiment 3
+			experiment3_options = copy_dict_and_update(experiment1_options, {
+				"n_step": 10,
+			})
+			# # Experiment 4
+			# experiment4_options = copy_dict_and_update(experiment1_options, {
+			# 	"n_step_random_sampling": True, # a Boolean
+			# 	"n_step_annealing_scheduler": {
+			# 		'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+			# 		'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+			# 			'schedule_timesteps': training_steps,
+			# 			'final_p': 1, # final n-step
+			# 			'framework': None,
+			# 			'initial_p': 10 # initial n-step
+			# 		}
+			# 	},
+			# })
+			# Experiment 4
+			experiment4_options = copy_dict_and_update(experiment1_options, {
+				"n_step_random_sampling": False, # a Boolean
+				"n_step_annealing_scheduler": {
+					'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+					'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+						'schedule_timesteps': training_steps,
+						'final_p': 1, # final n-step
+						'framework': None,
+						'initial_p': 10 # initial n-step
+					}
+				},
+			})
+			# Experiment 5
+			experiment5_options = copy_dict_and_update(experiment1_options, {
+				"n_step": 10,
+				"n_step_random_sampling": True, # a Boolean
+				"n_step_annealing_scheduler": {
+					'fn': None, # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+					'args': {} # the arguments to pass to the function; for more details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+				},
+			})
+			## build experiments
+			eid = get_experiment_id(default_environment.replace('/','_'), num_agents, tau)
+			config_list += [
+				#
+				('XA'+default_algorithm, default_environment, f'exp1-{default_algorithm}-{eid}', num_agents, experiment1_options),
+				#
+				('XA'+default_algorithm, default_environment, f'exp2-{default_algorithm}-{eid}', num_agents, experiment2_options),
+				#
+				('XA'+default_algorithm, default_environment, f'exp3-{default_algorithm}-{eid}', num_agents, experiment3_options),
+				#
+				('XA'+default_algorithm, default_environment, f'exp4-{default_algorithm}-{eid}', num_agents, experiment4_options),
+				#
+				('XA'+default_algorithm, default_environment, f'exp5-{default_algorithm}-{eid}', num_agents, experiment5_options),
+			]
 
 ############################################################################################
 ############################################################################################
