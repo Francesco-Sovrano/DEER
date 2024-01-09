@@ -238,7 +238,7 @@ class XADQN(DQN):
 					shape=(1,), dtype=np.float32), }),
 				embedding_size=embedding_size,)
 			self.loss_fn = torch.nn.TripletMarginLoss(
-				self.siamese_config.get('margin', 1.0), p=2)
+				self.siamese_config.get('loss_margin', 1.0), p=2)
 			self.optimizer = torch.optim.Adam(
 				self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
 			self.siamese_model.to(self.siamese_config.get("device", "cpu"))

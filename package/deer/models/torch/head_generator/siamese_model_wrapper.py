@@ -64,7 +64,9 @@ class SiameseAdaptiveModel(nn.ModuleDict):
         self.last_fc = nn.Sequential(
             nn.LazyLinear(out_features=256),
             nn.ReLU(),
-            nn.Linear(in_features=256, out_features=embedding_size),
+            nn.Linear(in_features=256, out_features=128),
+            nn.ReLU(),
+            nn.Linear(in_features=128, out_features=embedding_size),
             nn.ReLU(),
         )
 

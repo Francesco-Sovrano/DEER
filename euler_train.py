@@ -16,7 +16,7 @@ from deer.models import get_model_catalog_dict
 from deer.agents.xadqn import XADQN, XADQNConfig
 from environment import CustomEnvironmentCallbacks
 
-EXPERIENCE_BUFFER_SIZE = 2 ** 12
+EXPERIENCE_BUFFER_SIZE = 2 ** 10
 CENTRALISED_TRAINING = True
 
 
@@ -53,11 +53,11 @@ default_options = {
 
 siamese_options = {
     "siamese_config": {
-        "use_siamese": False,
-        "buffer_size": 10000,
+        "use_siamese": True,
+        "buffer_size": 100,
         "update_frequency": 5000,
         "embedding_size": 8,
-        "loss_margin": 5,
+        "loss_margin": 1,
     }
 }
 
