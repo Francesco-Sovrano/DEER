@@ -61,8 +61,10 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 self[k] = nn.ModuleList([nn.Flatten()
                                          for _ in other_inputs_list])
 
+        in_dim = 514  # TODO: back to a hacky solution, lazy is not supported
+        # on cluster
         self.last_fc = nn.Sequential(
-            nn.LazyLinear(out_features=256),
+            nn.Linear(in_features=in_dim, out_features=256),
             nn.ReLU(),
             nn.Linear(in_features=256, out_features=128),
             nn.ReLU(),
