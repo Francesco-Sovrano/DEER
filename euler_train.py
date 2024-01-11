@@ -56,7 +56,7 @@ siamese_options = {
         "use_siamese": True,
         "buffer_size": 100,
         "update_frequency": 5000,
-        "embedding_size": 8,
+        "embedding_size": 512,
         "loss_margin": 1,
     }
 }
@@ -94,17 +94,18 @@ xa_default_options = {
         'max_age_window': None,
     },
     "clustering_options": {
-        'clustering_scheme': [
-            'Why',
-            # 'Who',
-            'How_Well',
-            # 'How_Fair',
-            # 'Where',
-            # 'What',
-            # 'How_Many'
-            # 'UWho',
-            # 'UWhich_CoopStrategy',
-        ],
+        "clustering_scheme": None,
+        # 'clustering_scheme': [
+        #     'Why',
+        #     # 'Who',
+        #     'How_Well',
+        #     # 'How_Fair',
+        #     # 'Where',
+        #     # 'What',
+        #     # 'How_Many'
+        #     # 'UWho',
+        #     # 'UWhich_CoopStrategy',
+        # ],
         "clustering_scheme_options": {
             # "n_clusters": {
             #     "who": 4,
@@ -135,12 +136,16 @@ def run_training(args):
     from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
     from ray.rllib.models import ModelCatalog
 
-    SELECTED_ENV = "GridDrive-Easy"
+    SELECTED_ENV = "GridDrive-Hard"
     CONFIG = default_options
     CONFIG = copy_dict_and_update(CONFIG, xa_default_options)
     CONFIG = copy_dict_and_update(CONFIG, algorithm_options)
     CONFIG = copy_dict_and_update(CONFIG, siamese_options)
     CONFIG["callbacks"] = CustomEnvironmentCallbacks
+
+    num_gpus = args.gpus
+    if args.no_gpu:
+        num_gpus = 0
 
     # Setup MARL training strategy: centralised or decentralised
     env = _global_registry.get(ENV_CREATOR, SELECTED_ENV)(
@@ -166,7 +171,7 @@ def run_training(args):
         ModelCatalog.register_custom_model(k, v)
 
     ray.shutdown()
-    ray.init(ignore_reinit_error=True, num_cpus=args.cpus,
+    ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
              include_dashboard=False)
     train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV,
           test_every_n_step=args.eval_freq,
@@ -312,6 +317,7 @@ def main():
     parser.add_argument('--no_gpu', default=False, required=False,
                         action='store_true',
                         help='Do not request any gpus.')
+    parser.add_argument('--gpus', default=1, required=False, type=int)
     parser.add_argument('--cpus', default=1, required=False, type=int)
     parser.add_argument("--batch_system",
                         type=str,
