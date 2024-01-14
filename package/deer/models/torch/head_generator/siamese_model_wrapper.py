@@ -2,7 +2,7 @@ from deer.models.torch.head_generator.adaptive_model_wrapper import *
 
 
 class SiameseAdaptiveModel(nn.ModuleDict):
-    def __init__(self, obs_space, embedding_size=64):
+    def __init__(self, obs_space, embedding_size=64, env="GridDrive-Hard"):
         super().__init__()
         if hasattr(obs_space, 'original_space'):
             obs_space = obs_space.original_space
@@ -61,8 +61,17 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 self[k] = nn.ModuleList([nn.Flatten()
                                          for _ in other_inputs_list])
 
-        in_dim = 514  # TODO: back to a hacky solution, lazy is not supported
-        # on cluster
+        # TODO: back to a hacky solution, lazy is not supported on cluster
+        if env == "GridDrive-Hard":
+            in_dim = 586
+        elif env == "GridDrive-Medium":
+            in_dim = 554
+        elif env == "GridDrive-Easy":
+            in_dim = 514
+        else:
+            raise NotImplementedError(f"env {env} not supported for "
+                                      f"SiameseAdaptiveModel")
+
         self.last_fc = nn.Sequential(
             nn.Linear(in_features=in_dim, out_features=256),
             nn.ReLU(),

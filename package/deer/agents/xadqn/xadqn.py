@@ -232,7 +232,8 @@ class XADQN(DQN):
 				f"rewards": gym.spaces.Box(
 					low=float('-inf'), high=float('inf'),
 					shape=(1,), dtype=np.float32), }),
-				embedding_size=embedding_size,)
+				embedding_size=embedding_size,
+				env=config.env)
 			self.loss_fn = torch.nn.TripletMarginLoss(
 				self.siamese_config.get('loss_margin', 1.0), p=2)
 			self.optimizer = torch.optim.Adam(

@@ -3,7 +3,7 @@ default: &default
   model:
     custom_model: adaptive_multihead_network
   no_done_at_end: false
-  gamma: 0.99
+  gamma: !!float 0.99
   seed: 42
   min_train_timesteps_per_iteration: 1
   train_batch_size: 256
@@ -20,19 +20,19 @@ default: &default
     dueling: true
     double_q: true
     num_atoms: 21
-    v_max: 2**5
+    v_max: 32
     v_min: -1
   buffer_options:
     prioritized_replay: true
     centralised_buffer: true
-    global_size: 2**10
+    global_size: 1024
     priority_id: td_errors
     priority_lower_limit: 0
     priority_aggregation_fn: np.mean
-    prioritization_alpha: 0.6
-    prioritization_importance_beta: 0.4
-    prioritization_importance_eta: 1e-2
-    prioritization_epsilon: 1e-06
+    prioritization_alpha: !!float 0.6
+    prioritization_importance_beta: !!float 0.4
+    prioritization_importance_eta: !!float 1e-2
+    prioritization_epsilon: !!float 1e-06
     cluster_size: null
     cluster_prioritisation_strategy: sum
     cluster_level_weighting: true
@@ -44,9 +44,9 @@ default: &default
     max_age_window: null
   clustering_options:
       clustering_scheme:
-          - Why
-          - How_Well
-      clustering_scheme_options: null
+        - Why
+        - How_Well
+      clustering_scheme_options: {}
       cluster_selection_policy: min
       cluster_with_episode_type: false
       cluster_overview_size: 1
