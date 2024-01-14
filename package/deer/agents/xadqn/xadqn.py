@@ -144,10 +144,6 @@ class XADQNConfig(DQNConfig):
 		if self.model["custom_model_config"].get("add_nonstationarity_correction", False):
 			self.sample_collector = PolicySignatureListCollector
 
-########################
-# XADQN Execution Plan
-########################
-
 
 class XADQN(DQN):
 	def __init__(self, *args, **kwargs):

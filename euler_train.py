@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import yaml
 import copy
 import pprint
 import argparse
@@ -16,164 +17,111 @@ from deer.models import get_model_catalog_dict
 from deer.agents.xadqn import XADQN, XADQNConfig
 from environment import CustomEnvironmentCallbacks
 
-EXPERIENCE_BUFFER_SIZE = 2 ** 10
-CENTRALISED_TRAINING = True
 
+def run_siamese_experiments(args):
+    envs = ['GridDrive-Easy', 'GridDrive-Medium', 'GridDrive-Hard']
+    methods = ["siamese", "clustering", "no_clustering"]
+    siamese_buffer_size = [100, 1000]
+    siamese_embedding_size = [512, 1024]
+    siamese_update_frequency = [5000, 10000]
+    siamese_loss_margin = [2**0, 2**14, 2**20]
 
-def copy_dict_and_update(d, u):
-    new_dict = copy.deepcopy(d)
-    new_dict.update(u)
-    return new_dict
+    new_args_dict = vars(args).copy()
+    res_dir = args.results_dir / 'xadqn_siamese'
+    new_args_dict['repetitions'] = 3
+    new_args_dict['time'] = 72
+    new_args_dict['memory'] = 20000
+    new_args_dict['no_gpu'] = True
 
+    for env in envs:
+        for method in methods:
+            for size in siamese_buffer_size:
+                for embedding_size in siamese_embedding_size:
+                    for update_freq in siamese_update_frequency:
+                        for loss_margin in siamese_loss_margin:
+                            print(f"Running experiment with env {env}, "
+                                  f"method {method}, "
+                                  f"buffer_size={size}, "
+                                  f"embedding_size={embedding_size}, "
+                                  f"update_frequency={update_freq}, "
+                                  f"loss_margin={loss_margin}")
 
-def copy_dict_and_update_with_key(d, k, u):
-    new_dict = copy.deepcopy(d)
-    if k not in new_dict:
-        new_dict[k] = {}
-    new_dict[k].update(u)
-    return new_dict
+                            run_res_dir = res_dir / env / f"method_{method}" \
+                                                          f"_buffer_{size}" \
+                                                          f"_embedding_" \
+                                                          f"{embedding_size}" \
+                                                          f"_update_" \
+                                                          f"{update_freq}" \
+                                                          f"_margin_" \
+                                                          f"{loss_margin}"
+                            run_res_dir.mkdir(parents=True, exist_ok=True)
+                            new_args_dict['results_dir'] = run_res_dir
+                            new_args_dict['run_id'] = f"{args.algo}_env_{env}"
+                            new_args_dict['env'] = env
 
+                            with open(args.ml_config_path) as file:
+                                configs = yaml.load(file, Loader=yaml.FullLoader)
+                            time = datetime.now().strftime('%H%M%S%f')
+                            name = f"{args.algo}_{env}_{time}"
+                            new_config_path = run_res_dir / (
+                                    name + "_" + Path(args.ml_config_path).name)
 
-default_options = {
-    "framework": "torch",
-    "model": {
-        "custom_model": "adaptive_multihead_network",
-    },
-    "no_done_at_end": False,
-    "gamma": 0.99,
-    "seed": 42,
-    # "train_batch_size": 2 ** 8,
-    "min_train_timesteps_per_iteration": 1,
-    # "batch_mode": "complete_episodes",
-    "train_batch_size": 2 ** 8,
-    "rollout_fragment_length": 2 ** 6,
-    "_disable_preprocessor_api": True,
-}
+                            if method == "siamese":
+                                configs[env]['siamese'] = {
+                                    'use_siamese': True,
+                                    'buffer_size': size,
+                                    'embedding_size': embedding_size,
+                                    'update_frequency': update_freq,
+                                    'loss_margin': loss_margin
+                                }
+                            else:
+                                configs[env]['siamese']['use_siamese'] = False
+                                if method == "no_clustering":
+                                    configs[env]['clustering_options'][
+                                        'clustering_scheme'] = None
 
+                            with open(new_config_path, 'w') as file:
+                                yaml.dump(configs, file)
 
-siamese_options = {
-    "siamese_config": {
-        "use_siamese": True,
-        "buffer_size": 100,
-        "update_frequency": 5000,
-        "embedding_size": 512,
-        "loss_margin": 1,
-    }
-}
-
-algorithm_options = {
-    "grad_clip": None,  # no need of gradient clipping with huber loss
-    "dueling": True,
-    "double_q": True,
-    "num_atoms": 21,
-    "v_max": 2 ** 5,
-    "v_min": -1,
-}
-
-
-xa_default_options = {
-    "buffer_options": {
-        "prioritized_replay": True,
-        "centralised_buffer": True,  # for MARL
-        'global_size': EXPERIENCE_BUFFER_SIZE,
-        'priority_id': 'td_errors',
-        'priority_lower_limit': 0,
-        'priority_aggregation_fn': 'np.mean',
-        'prioritization_alpha': 0.6,
-        'prioritization_importance_beta': 0.4,
-        'prioritization_importance_eta': 1e-2,
-        'prioritization_epsilon': 1e-6,
-        'cluster_size': None,
-        'cluster_prioritisation_strategy': 'sum',
-        'cluster_level_weighting': True,
-        'clustering_xi': 1,
-        'prioritized_drop_probability': 0,
-        'global_distribution_matching': False,
-        'stationarity_window_size': None,
-        'stationarity_smoothing_factor': 1,
-        'max_age_window': None,
-    },
-    "clustering_options": {
-        "clustering_scheme": None,
-        # 'clustering_scheme': [
-        #     'Why',
-        #     # 'Who',
-        #     'How_Well',
-        #     # 'How_Fair',
-        #     # 'Where',
-        #     # 'What',
-        #     # 'How_Many'
-        #     # 'UWho',
-        #     # 'UWhich_CoopStrategy',
-        # ],
-        "clustering_scheme_options": {
-            # "n_clusters": {
-            #     "who": 4,
-            #     # "why": 8,
-            #     # "what": 8,
-            # },
-            # "default_n_clusters": 8,
-            # "frequency_independent_clustering": False,
-            # # Setting this to True can be memory expensive, especially for WHO explanations
-            # "agent_action_sliding_window": 2 ** 3,
-            # "episode_window_size": 2 ** 6,
-            # "batch_window_size": 2 ** 8,
-            # "training_step_window_size": 2 ** 2,
-        },
-        "cluster_selection_policy": "min",
-        "cluster_with_episode_type": False,
-        "cluster_overview_size": 1,
-        "collect_cluster_metrics": True,
-        "ratio_of_samples_from_unclustered_buffer": 0,
-    },
-}
+                            new_args_dict['ml_config_path'] = new_config_path
+                            exp_args = argparse.Namespace(**new_args_dict)
+                            submit_jobs(exp_args)
 
 
 def run_training(args):
     os.environ["TUNE_RESULT_DIR"] = str(args.results_dir)
     import ray
-    from ray.tune.registry import _global_registry, ENV_CREATOR
     from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
     from ray.rllib.models import ModelCatalog
 
-    SELECTED_ENV = "GridDrive-Hard"
-    CONFIG = default_options
-    CONFIG = copy_dict_and_update(CONFIG, xa_default_options)
-    CONFIG = copy_dict_and_update(CONFIG, algorithm_options)
-    CONFIG = copy_dict_and_update(CONFIG, siamese_options)
-    CONFIG["callbacks"] = CustomEnvironmentCallbacks
+    env = args.env
+    with open(args.ml_config_path) as file:
+        configs = yaml.load(file, Loader=yaml.FullLoader)
+        configs = configs.get(args.env, None)
+
+    configs["callbacks"] = CustomEnvironmentCallbacks
+    configs["multiagent"] = {
+        "policies": {DEFAULT_POLICY_ID},
+        "policy_mapping_fn": lambda agent_id: DEFAULT_POLICY_ID,
+        "policies_to_train": None,
+        "observation_fn": None,
+        "replay_mode": "independent",
+    }
+    print('Config:', configs)
+
+    # Register models
+    for k, v in get_model_catalog_dict(
+            'dqn', configs.get("framework", 'torch')).items():
+        ModelCatalog.register_custom_model(k, v)
 
     num_gpus = args.gpus
     if args.no_gpu:
         num_gpus = 0
 
-    # Setup MARL training strategy: centralised or decentralised
-    env = _global_registry.get(ENV_CREATOR, SELECTED_ENV)(
-        CONFIG.get("env_config", {}))
-    obs_space = env.observation_space
-    act_space = env.action_space
-
-    # policy_graphs = {DEFAULT_POLICY_ID: (None, obs_space, act_space, CONFIG)}
-    policy_graphs = {DEFAULT_POLICY_ID}
-    policy_mapping_fn = lambda agent_id: DEFAULT_POLICY_ID
-
-    CONFIG["multiagent"] = {
-        "policies": policy_graphs,
-        "policy_mapping_fn": policy_mapping_fn,
-        "policies_to_train": None,
-        "observation_fn": None,
-        "replay_mode": "independent",
-    }
-    print('Config:', CONFIG)
-
-    # Register models
-    for k, v in get_model_catalog_dict('dqn', CONFIG.get("framework", 'torch')).items():
-        ModelCatalog.register_custom_model(k, v)
-
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
              include_dashboard=False)
-    train(XADQN, XADQNConfig, CONFIG, SELECTED_ENV,
+    train(XADQN, XADQNConfig, configs, env,
           test_every_n_step=args.eval_freq,
           stop_training_after_n_step=args.total_n_steps)
 
@@ -252,7 +200,11 @@ def submit_jobs(args):
 
 
 def run_experiments(args):
-    pass
+    for exp in args.experiments:
+        if exp == 'all' or exp == "xadqn_siamese":
+            run_siamese_experiments(args)
+        else:
+            raise ValueError(f'Unknown experiment {exp}')
 
 
 def main():
@@ -265,9 +217,9 @@ def main():
                         help="directory name for results to be saved")
     parser.add_argument("--ml_config_path",
                         type=Path,
-                        default=Path("configs/config_sb3.yaml"),
+                        default=Path("configs/xadqn_siamese_config.yaml"),
                         help="Path to the ml-agents or sb3 config. "
-                             "Ex: 'configs/fast_ppo_config_linear_lr.yaml'")
+                             "Ex: 'configs/xadqn_siamese_config.yaml'")
 
     parser.add_argument("--seed",
                         nargs="+",
@@ -298,10 +250,10 @@ def main():
     parser.add_argument("--anim_freq", type=int, default=None)
     parser.add_argument("--episode_max_length", type=int, default=15000)
     parser.add_argument("--total_n_steps", type=int, default=40000000)
-    parser.add_argument("--env", type=str, default='GridDrive-Easy')
+    parser.add_argument("--env", type=str, default='GridDrive-Hard')
 
-    parser.add_argument("--algo", type=str, default='dqnar',
-                        help='sqn, ppo, dqnar, ppoar, qlearning or sarsa')
+    parser.add_argument("--algo", type=str, default='xadqn',
+                        help='xadqn for now')
 
     # Cluster arguments
     parser.add_argument('--no_submit', default=False, required=False,
