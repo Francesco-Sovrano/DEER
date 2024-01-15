@@ -222,6 +222,7 @@ class XADQN(DQN):
 			get_clustered_replay_buffer(self.config, siamese=self.use_siamese))
 
 		if self.use_siamese:
+			device = self.get_policy().device
 			_, env_creator = self._get_env_id_and_creator(config.env, config)
 			tmp_env = env_creator(config["env_config"])
 			embedding_size = self.siamese_config.get('embedding_size', 64)
@@ -238,7 +239,7 @@ class XADQN(DQN):
 				self.siamese_config.get('loss_margin', 1.0), p=2)
 			self.optimizer = torch.optim.Adam(
 				self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
-			self.siamese_model.to(self.siamese_config.get("device", "cpu"))
+			self.siamese_model.to(device)
 		
 		def add_view_requirements(w):
 			for policy in w.policy_map.values():
