@@ -122,8 +122,9 @@ def run_training(args):
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
              include_dashboard=False)
     train(XADQN, XADQNConfig, configs, env,
-          test_every_n_step=args.eval_freq,
-          stop_training_after_n_step=args.total_n_steps)
+          test_every_n_step=np.inf,
+          stop_training_after_n_step=args.total_n_steps,
+          save_gif=False)
 
 
 def submit_jobs(args):
@@ -186,6 +187,8 @@ def submit_jobs(args):
         newargs = unparser.unparse(**new_args_dict)
         newargs = newargs + list_str + f" --no_submit"
 
+        env_var = f"TUNE_RESULT_DIR={args.results_dir}"
+        euler_slurm = euler_slurm + env_var + " "
         command = ''
         if args.batch_system == 'slurm':
             command = f"python euler_train.py {newargs}"

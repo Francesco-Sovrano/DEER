@@ -161,7 +161,7 @@ class GridDrive(gym.Env):
 		road_limits = {}
 		columns = self.grid.width
 		rows = self.grid.height
-		temp_agent = copy.deepcopy(self.grid.agent)
+		# temp_agent = copy.deepcopy(self.grid.agent)
 		for x in range(columns):
 			for y in range(rows):
 				road = self.grid.cells[x][y]

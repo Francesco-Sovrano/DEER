@@ -313,7 +313,8 @@ def train(trainer_class, config_class, config_dict, environment_class,
         else float('inf')
 
     def save_checkpoint():
-        checkpoint = agent.save()
+        # checkpoint = agent.save()
+        checkpoint_dir = agent._create_checkpoint_dir(checkpoint_dir=None)
         print(f'Checkpoint saved in {checkpoint}')
         print(f'Testing..')
         try:

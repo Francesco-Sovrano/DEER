@@ -9,6 +9,7 @@ default: &default
   train_batch_size: 256
   rollout_fragment_length: 64
   _disable_preprocessor_api: true
+  num_steps_sampled_before_learning_starts: 2**14
   siamese:
     use_siamese: true
     buffer_size: 1000
