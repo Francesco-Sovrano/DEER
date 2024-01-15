@@ -311,6 +311,12 @@ class XADQN(DQN):
 				if len(explanation_batch_dict.keys()) >= 2: # TODO: check if there is a way to avoid this check
 					anchor_class, negative_class = random.sample(list(
 						explanation_batch_dict.keys()), 2)
+					# TODO: check if there is a way to avoid this check too
+					if len(self.positive_buffer.get_batches(anchor_class)) < 1:
+						print(f"Warning: not enough positive samples for "
+							  f"class {anchor_class} at time step "
+							  f"{self._counters['training_steps']}")
+						continue
 					self.triplet_buffer['anchor'].append(random.choice(
 						explanation_batch_dict[anchor_class]))
 					self.triplet_buffer['positive'].append(random.choice(

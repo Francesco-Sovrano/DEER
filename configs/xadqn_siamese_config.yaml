@@ -11,7 +11,7 @@ default: &default
   _disable_preprocessor_api: true
   siamese:
     use_siamese: true
-    buffer_size: 100
+    buffer_size: 1000
     update_frequency: 5000
     embedding_size: 512
     loss_margin: 1
