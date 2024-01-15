@@ -188,7 +188,7 @@ def submit_jobs(args):
         print(f"Run {run_id} with seed: {seed}")
         euler_slurm = (f"sbatch --mem-per-cpu={args.memory} "
                        f"-n {args.cpus} "
-                       f"{'--gpus=1 ' if not args.no_gpu else ''}"
+                       f"{f'--gpus={args.gpus} ' if not args.no_gpu else ''}"
                        f"{'--gpus=rtx_3090:1 ' if not args.any_gpu else ''}"
                        f"-J {run_id} "
                        f"-o {lsf_out_dir / run_id} "
