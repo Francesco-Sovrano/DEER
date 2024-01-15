@@ -20,7 +20,7 @@ from environment import CustomEnvironmentCallbacks
 
 def run_siamese_experiments(args):
     envs = ['GridDrive-Easy', 'GridDrive-Medium', 'GridDrive-Hard']
-    methods = ["siamese", "clustering", "no_clustering"]
+    methods = ["siamese"]
     siamese_buffer_size = [100, 1000]
     siamese_embedding_size = [512, 1024]
     siamese_update_frequency = [5000, 10000]
@@ -31,7 +31,7 @@ def run_siamese_experiments(args):
     new_args_dict['repetitions'] = 3
     new_args_dict['time'] = 72
     new_args_dict['memory'] = 20000
-    new_args_dict['no_gpu'] = True
+    new_args_dict['no_gpu'] = False
 
     for env in envs:
         for method in methods:
@@ -75,10 +75,7 @@ def run_siamese_experiments(args):
                                     'loss_margin': loss_margin
                                 }
                             else:
-                                configs[env]['siamese']['use_siamese'] = False
-                                if method == "no_clustering":
-                                    configs[env]['clustering_options'][
-                                        'clustering_scheme'] = None
+                                raise ValueError("This should not happen")
 
                             with open(new_config_path, 'w') as file:
                                 yaml.dump(configs, file)
@@ -86,6 +83,38 @@ def run_siamese_experiments(args):
                             new_args_dict['ml_config_path'] = new_config_path
                             exp_args = argparse.Namespace(**new_args_dict)
                             submit_jobs(exp_args)
+    methods = ["clustering", "no_clustering"]
+    for env in envs:
+        for method in methods:
+            print(f"Running experiment with env {env}, method {method}")
+
+            run_res_dir = res_dir / env / f"method_{method}"
+            run_res_dir.mkdir(parents=True, exist_ok=True)
+            new_args_dict['results_dir'] = run_res_dir
+            new_args_dict['run_id'] = f"{args.algo}_env_{env}"
+            new_args_dict['env'] = env
+
+            with open(args.ml_config_path) as file:
+                configs = yaml.load(file, Loader=yaml.FullLoader)
+            time = datetime.now().strftime('%H%M%S%f')
+            name = f"{args.algo}_{env}_{time}"
+            new_config_path = run_res_dir / (
+                    name + "_" + Path(args.ml_config_path).name)
+
+            if method == "siamese":
+                raise ValueError("This should not happen")
+            else:
+                configs[env]['siamese']['use_siamese'] = False
+                if method == "no_clustering":
+                    configs[env]['clustering_options'][
+                        'clustering_scheme'] = None
+
+            with open(new_config_path, 'w') as file:
+                yaml.dump(configs, file)
+
+            new_args_dict['ml_config_path'] = new_config_path
+            exp_args = argparse.Namespace(**new_args_dict)
+            submit_jobs(exp_args)
 
 
 def run_training(args):
