@@ -67,7 +67,7 @@ class SiameseAdaptiveModel(nn.ModuleDict):
         elif env == "GridDrive-Medium":
             in_dim = 554
         elif env == "GridDrive-Easy":
-            in_dim = 514
+            in_dim = 530
         else:
             raise NotImplementedError(f"env {env} not supported for "
                                       f"SiameseAdaptiveModel")
