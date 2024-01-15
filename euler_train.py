@@ -187,15 +187,17 @@ def submit_jobs(args):
         newargs = unparser.unparse(**new_args_dict)
         newargs = newargs + list_str + f" --no_submit"
 
-        env_var = f"TUNE_RESULT_DIR={args.results_dir}"
-        euler_slurm = euler_slurm + env_var + " "
+        env_var = os.environ.copy()
+        env_var["TUNE_RESULT_DIR"] = str(args.results_dir)
         command = ''
         if args.batch_system == 'slurm':
             command = f"python euler_train.py {newargs}"
-            subprocess.check_output(args=euler_slurm.split() + [command])
+            subprocess.check_output(args=euler_slurm.split() + [command],
+                                    env=env_var)
         elif args.batch_system == 'lsf':
             command = euler_lsf + f"python euler_train.py {newargs}"
-            subprocess.check_output(args=command.split())
+            subprocess.check_output(args=command.split(),
+                                    env=env_var)
         else:
             NotImplemented(f"batch system {args.batch_system} is not "
                            f"supported on the cluster.")
