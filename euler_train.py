@@ -31,7 +31,7 @@ def run_siamese_experiments(args):
     new_args_dict['repetitions'] = 3
     new_args_dict['time'] = 72
     new_args_dict['memory'] = 20000
-    new_args_dict['no_gpu'] = False
+    new_args_dict['no_gpu'] = args.no_gpu
 
     for env in envs:
         for method in methods:
