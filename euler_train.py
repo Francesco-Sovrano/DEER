@@ -1,7 +1,6 @@
 from pathlib import Path
 import os
 import yaml
-import copy
 import pprint
 import argparse
 import argunparse
@@ -31,9 +30,14 @@ def run_siamese_experiments(args):
     new_args_dict['repetitions'] = 3
     new_args_dict['time'] = 72
     new_args_dict['memory'] = 20000
+    new_args_dict['total_n_steps'] = 10000000
     new_args_dict['no_gpu'] = args.no_gpu
 
     for env in envs:
+        if env == 'GridDrive-Hard':
+            new_args_dict['total_n_steps'] = 40000000
+        else:
+            new_args_dict['time'] = 24
         for method in methods:
             for size in siamese_buffer_size:
                 for embedding_size in siamese_embedding_size:
@@ -85,6 +89,10 @@ def run_siamese_experiments(args):
                             submit_jobs(exp_args)
     methods = ["clustering", "no_clustering"]
     for env in envs:
+        if env == 'GridDrive-Hard':
+            new_args_dict['total_n_steps'] = 40000000
+        else:
+            new_args_dict['time'] = 24
         for method in methods:
             print(f"Running experiment with env {env}, method {method}")
 

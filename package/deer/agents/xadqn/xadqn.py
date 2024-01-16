@@ -248,7 +248,7 @@ class XADQN(DQN):
 
         ############
         self._counters['last_siamese_update'] = 0
-        self.siamese_config = config.get("siamese_config", {})
+        self.siamese_config = config.get("siamese", {})
         self.use_siamese = self.siamese_config.get('use_siamese', False)
         self.s_buffer_size = self.siamese_config.get('buffer_size', 10000)
         self.positive_buffer = Buffer(global_size=self.s_buffer_size, seed=42)
