@@ -27,7 +27,7 @@ def run_siamese_experiments(args):
 
     new_args_dict = vars(args).copy()
     res_dir = args.results_dir / 'xadqn_siamese'
-    new_args_dict['repetitions'] = 3
+    new_args_dict['repetitions'] = 1
     new_args_dict['time'] = 72
     new_args_dict['memory'] = 20000
     new_args_dict['total_n_steps'] = 10000000
