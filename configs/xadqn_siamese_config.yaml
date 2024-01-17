@@ -14,7 +14,7 @@ default: &default
     use_siamese: true
     buffer_size: 1000
     update_frequency: 5000
-    embedding_size: 512
+    embedding_size: 2048
     loss_margin: 1
   algorithm:
     grad_clip: null

@@ -20,10 +20,10 @@ from environment import CustomEnvironmentCallbacks
 def run_siamese_experiments(args):
     envs = ['GridDrive-Easy', 'GridDrive-Medium', 'GridDrive-Hard']
     methods = ["siamese"]
-    siamese_buffer_size = [100, 1000]
-    siamese_embedding_size = [512, 1024]
-    siamese_update_frequency = [5000, 10000]
-    siamese_loss_margin = [2**0, 2**14, 2**20]
+    siamese_buffer_size = [200]  # [100, 1000]
+    siamese_embedding_size = [2048]  # [512, 1024]
+    siamese_update_frequency = [5000]  # [5000, 10000]
+    siamese_loss_margin = [2**20]  # [2**0, 2**14, 2**20]
 
     new_args_dict = vars(args).copy()
     res_dir = args.results_dir / 'xadqn_siamese'

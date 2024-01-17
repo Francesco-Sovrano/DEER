@@ -63,7 +63,8 @@ class SiameseAdaptiveModel(nn.ModuleDict):
 
         # TODO: back to a hacky solution, lazy is not supported on cluster
         if env == "GridDrive-Hard":
-            in_dim = 586
+            # in_dim = 586
+            in_dim = 1098
         elif env == "GridDrive-Medium":
             in_dim = 554
         elif env == "GridDrive-Easy":
@@ -73,12 +74,16 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                                       f"SiameseAdaptiveModel")
 
         self.last_fc = nn.Sequential(
-            nn.Linear(in_features=in_dim, out_features=256),
+            nn.Linear(in_features=in_dim, out_features=1024),
             nn.ReLU(),
-            nn.Linear(in_features=256, out_features=128),
+            # nn.Flatten(start_dim=1),
+            # nn.BatchNorm1d(1024),
+            nn.Linear(in_features=1024, out_features=1024),
             nn.ReLU(),
-            nn.Linear(in_features=128, out_features=embedding_size),
+            # nn.BatchNorm1d(1024),
+            nn.Linear(in_features=1024, out_features=embedding_size),
             nn.ReLU(),
+            # nn.BatchNorm1d(embedding_size),
         )
 
     def variables(self, as_dict=False):
@@ -221,12 +226,15 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                           out_channels=_units // 2 + 1, kernel_size=9,
                           stride=4, padding=4),
                 nn.ReLU(),
+                nn.BatchNorm2d(_units // 2 + 1),
                 nn.Conv2d(in_channels=_units // 2 + 1, out_channels=_units,
                           kernel_size=5, stride=2, padding=2),
                 nn.ReLU(),
+                nn.BatchNorm2d(_units),
                 nn.Conv2d(in_channels=_units, out_channels=_units,
                           kernel_size=3, stride=1, padding=1),
                 nn.ReLU(),
+                nn.BatchNorm2d(_units),
                 nn.Flatten(),
             )
             for i, input_shape in enumerate(_input_list)
@@ -236,12 +244,15 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 nn.Conv2d(in_channels=input_shape[-1], out_channels=32,
                           kernel_size=8, stride=4, padding=4),
                 nn.ReLU(),
+                nn.BatchNorm2d(32),
                 nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4,
                           stride=2, padding=2),
                 nn.ReLU(),
-                nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4,
+                nn.BatchNorm2d(64),
+                nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4,
                           stride=1, padding=1),
                 nn.ReLU(),
+                nn.BatchNorm2d(128),
                 nn.Flatten(),
             )
             for i, input_shape in enumerate(_input_list)
