@@ -12,7 +12,7 @@ default: &default
   num_steps_sampled_before_learning_starts: 16384
   siamese:
     use_siamese: true
-    buffer_size: 1000
+    buffer_size: 200
     update_frequency: 5000
     embedding_size: 2048
     loss_margin: 1
