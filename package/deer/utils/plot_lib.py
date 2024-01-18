@@ -295,10 +295,11 @@ def line_plot(logs, figure_file, max_plot_size=20, max_length=None,
                                 y_key_upper_quartile, alpha=0.25,
                                 color=color_set[log_id % len(color_set)])
             # show legend
-            ax.legend()
+            # ax.legend()
             # display grid
             ax.grid(True)
 
+    axes[-1].legend()
     figure.savefig(figure_file, bbox_inches='tight')
     print("Plot figure saved in ", figure_file)
     figure = None
