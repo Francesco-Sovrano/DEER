@@ -31,7 +31,7 @@ def run_siamese_experiments(args):
     new_args_dict['time'] = 100
     new_args_dict['memory'] = 20000
     new_args_dict['total_n_steps'] = 40000000
-    new_args_dict['no_gpu'] = True
+    new_args_dict['no_gpu'] = False
 
     for env in envs:
         for method in methods:
@@ -90,7 +90,7 @@ def run_siamese_experiments(args):
     new_args_dict['time'] = 100
     new_args_dict['memory'] = 20000
     new_args_dict['total_n_steps'] = 40000000
-    new_args_dict['no_gpu'] = False
+    new_args_dict['no_gpu'] = True
     for env in envs:
         for method in methods:
             print(f"Running experiment with env {env}, method {method}")
