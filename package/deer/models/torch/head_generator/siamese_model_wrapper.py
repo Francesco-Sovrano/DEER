@@ -63,14 +63,14 @@ class SiameseAdaptiveModel(nn.ModuleDict):
 
         # TODO: back to a hacky solution, lazy is not supported on cluster
         if env == "GridDrive-Hard":
-            # in_dim = 586
-            in_dim = 1098
+            in_dim = 586
+            # in_dim = 1098
         elif env == "GridDrive-Medium":
-            # in_dim = 554
-            in_dim = 1066
+            in_dim = 554
+            # in_dim = 1066
         elif env == "GridDrive-Easy":
             # in_dim = 530
-            in_dim = 1042
+            in_dim = 530
         else:
             raise NotImplementedError(f"env {env} not supported for "
                                       f"SiameseAdaptiveModel")
@@ -243,18 +243,22 @@ class SiameseAdaptiveModel(nn.ModuleDict):
         ] if _units else [
             nn.Sequential(
                 Permute((0, 3, 1, 2)),
-                nn.Conv2d(in_channels=input_shape[-1], out_channels=32,
-                          kernel_size=8, stride=4, padding=4),
+                nn.Conv2d(in_channels=input_shape[-1], out_channels=64,
+                          kernel_size=3, stride=1, padding=4),
                 nn.ReLU(),
-                nn.BatchNorm2d(32),
-                nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4,
-                          stride=2, padding=2),
-                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
                 nn.BatchNorm2d(64),
-                nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4,
+                nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3,
+                          stride=1, padding=2),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+                nn.BatchNorm2d(128),
+                nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3,
                           stride=1, padding=1),
                 nn.ReLU(),
-                nn.BatchNorm2d(128),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+                nn.BatchNorm2d(256),
+                nn.AvgPool2d(kernel_size=6, stride=2, padding=1),
                 nn.Flatten(),
             )
             for i, input_shape in enumerate(_input_list)
