@@ -66,7 +66,7 @@ class PolicySignatureListCollector(SimpleListCollector):
 def init_xa_config(self):
     self.num_steps_sampled_before_learning_starts = 2 ** 14
     self.min_train_timesteps_per_iteration = 1
-    self.siamese_config = {
+    self.siamese = {
         "use_siamese": True,
         "buffer_size": 10,
         "update_frequency": 10000,

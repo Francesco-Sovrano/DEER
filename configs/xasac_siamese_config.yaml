@@ -56,3 +56,25 @@ GraphDrive-Medium:
 
 GraphDrive-Easy:
   <<: *default
+
+Ant-v4:
+  <<: *default
+
+Ant-v3:
+  <<: *default
+
+HalfCheetah-v4:
+  <<: *default
+
+Humanoid-v4:
+  <<: *default
+
+Walker2d-v4:
+  <<: *default
+
+Swimmer-v4:
+  <<: *default
+
+Hopper-v4:
+  <<: *default
+
