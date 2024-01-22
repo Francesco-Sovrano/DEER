@@ -5,7 +5,9 @@ default: &default
   no_done_at_end: false
   gamma: !!float 0.99
   seed: 42
+  horizon: 32
   min_train_timesteps_per_iteration: 1
+  batch_mode: truncate_episodes
   train_batch_size: 256
   rollout_fragment_length: 64
   _disable_preprocessor_api: true
@@ -16,28 +18,26 @@ default: &default
     update_frequency: 5000
     embedding_size: 2048
     loss_margin: 1
-  algorithm:
-    grad_clip: null
-    dueling: true
-    double_q: true
-    num_atoms: 21
-    v_max: 32
-    v_min: -1
+  grad_clip: null
+  dueling: true
+  double_q: true
+  num_atoms: 21
+  v_max: 32
+  v_min: -1
   buffer_options:
     prioritized_replay: true
     centralised_buffer: true
-    global_size: 1024
+    global_size: 16384
     priority_id: td_errors
     priority_lower_limit: 0
     priority_aggregation_fn: np.mean
     prioritization_alpha: !!float 0.6
     prioritization_importance_beta: !!float 0.4
-    prioritization_importance_eta: !!float 1e-2
     prioritization_epsilon: !!float 1e-06
     cluster_size: null
     cluster_prioritisation_strategy: sum
     cluster_level_weighting: true
-    clustering_xi: 1
+    clustering_xi: 4
     prioritized_drop_probability: 0
     global_distribution_matching: false
     stationarity_window_size: null
