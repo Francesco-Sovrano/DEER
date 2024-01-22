@@ -18,6 +18,8 @@ from environment import CustomEnvironmentCallbacks
 
 
 def run_siamese_experiments(args):
+
+    # Run Siamese experiments
     envs = ['GridDrive-Easy', 'GridDrive-Medium', 'GridDrive-Hard']
     methods = ["siamese"]
     siamese_buffer_size = [100, 500]
@@ -83,6 +85,8 @@ def run_siamese_experiments(args):
                             new_args_dict['ml_config_path'] = new_config_path
                             exp_args = argparse.Namespace(**new_args_dict)
                             submit_jobs(exp_args)
+
+    # Run baseline experiments
     methods = ["clustering", "no_clustering"]
     new_args_dict = vars(args).copy()
     res_dir = args.results_dir / 'xadqn_siamese'
