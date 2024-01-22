@@ -377,6 +377,8 @@ def run_experiments(args):
     for exp in args.experiments:
         if exp == 'all' or exp == "xadqn_siamese":
             run_griddrive_siamese_experiments(args)
+        elif exp == 'all' or exp == "xasac_siamese":
+            run_mujoco_siamese_experiments(args)
         else:
             raise ValueError(f'Unknown experiment {exp}')
 
