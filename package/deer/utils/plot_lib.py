@@ -324,6 +324,9 @@ def list_progress_csv_files(results_dir):
                               file.name == 'progress.csv']
 
         # TODO: for now we take the first dir
+        if len(progress_csv_files) == 0:
+            print(f"no progress.csv file found in {subdir}")
+            continue
         progress_csv_file = progress_csv_files[0]
         all_csv_files.append(str(progress_csv_file))
         all_names.append(exp_name)
