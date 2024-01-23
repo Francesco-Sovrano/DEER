@@ -12,6 +12,7 @@ from ray.rllib.algorithms.sac.sac import SACConfig
 from deer.agents.xasac.xasac_tf_policy import XASACTFPolicy
 from deer.agents.xasac.xasac_torch_policy import XASACTorchPolicy
 
+
 class XASACConfig(SACConfig):
 
 	def __init__(self, algo_class=None):
@@ -30,9 +31,6 @@ class XASACConfig(SACConfig):
 		if self.model["custom_model_config"].get("add_nonstationarity_correction", False):
 			self.sample_collector = PolicySignatureListCollector
 
-########################
-# XASAC Policy
-########################
 
 class XASAC(XADQN):
 	def __init__(self, *args, **kwargs):

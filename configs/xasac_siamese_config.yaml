@@ -1,4 +1,6 @@
 default: &default
+  disable_env_checking: True
+#  allow_unknown_configs: True
   framework: torch
   model:
     custom_model: adaptive_multihead_network
