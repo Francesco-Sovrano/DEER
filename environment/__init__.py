@@ -7,7 +7,7 @@ from environment.custom_metrics import CustomEnvironmentCallbacks
 import gym
 
 # Get the list of all environment IDs from gymnasium
-env_ids = gym.envs.registry.env_specs.keys()
+env_ids = gym.envs.registry.keys()
 
 # Register each environment using the register_env function
 for env_id in env_ids:

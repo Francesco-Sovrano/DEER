@@ -40,6 +40,7 @@ default: &default
     max_age_window: null
   clustering_options:
       clustering_scheme:
+        - Why
         - How_Well
       clustering_scheme_options: {}
       cluster_selection_policy: min
