@@ -220,8 +220,7 @@ class XADQN(DQN):
     @override(DQN)
     def setup(self, config):
         if config.n_step_annealing_scheduler['args'].get('initial_p', None):
-            assert config.n_step_annealing_scheduler['args'][
-                       'initial_p'] <= config.rollout_fragment_length, f"n_step_annealing_scheduler['args']['initial_p'] ({config.n_step_annealing_scheduler['args']['initial_p']}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})"
+            assert config.n_step_annealing_scheduler['args']['initial_p'] <= config.rollout_fragment_length, f"n_step_annealing_scheduler['args']['initial_p'] ({config.n_step_annealing_scheduler['args']['initial_p']}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})"
         else:
             assert config.n_step <= config.rollout_fragment_length, f'n_step ({config.n_step}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})'
 
@@ -231,9 +230,7 @@ class XADQN(DQN):
 
         self._counters['training_steps'] = 0
         if self.config.n_step_annealing_scheduler['fn']:
-            self.n_step_annealing_scheduler = eval(
-                self.config.n_step_annealing_scheduler['fn'])(
-                **self.config.n_step_annealing_scheduler['args'])
+            self.n_step_annealing_scheduler = eval(self.config.n_step_annealing_scheduler['fn'])(**self.config.n_step_annealing_scheduler['args'])
             self.update_n_steps()
         else:
             self.n_step_annealing_scheduler = None
@@ -278,22 +275,21 @@ class XADQN(DQN):
                 self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
             self.siamese_model.to(device)
 
-        def add_view_requirements(w):
-            for policy in w.policy_map.values():
-                # policy.view_requirements[SampleBatch.T] = ViewRequirement(SampleBatch.T, shift=0)
-                policy.view_requirements[SampleBatch.INFOS] = ViewRequirement(
-                    SampleBatch.INFOS, shift=0)
-                if config.buffer_options["priority_id"] == "td_errors":
-                    policy.view_requirements["td_errors"] = ViewRequirement(
-                        "td_errors", shift=0)
-                if config.model["custom_model_config"].get(
-                        "add_nonstationarity_correction", False):
-                    policy.view_requirements[
-                        "policy_signature"] = ViewRequirement(
-                        "policy_signature", used_for_compute_actions=True,
-                        shift=0)
+        # def add_view_requirements(w):
+        #     for policy in w.policy_map.values():
+        #         # policy.view_requirements[SampleBatch.T] = ViewRequirement(SampleBatch.T, shift=0)
+        #         policy.view_requirements[SampleBatch.INFOS] = ViewRequirement(SampleBatch.INFOS, shift=0)
+        #         if config.buffer_options["priority_id"] == "td_errors":
+        #             policy.view_requirements["td_errors"] = ViewRequirement(
+        #                 "td_errors", shift=0)
+        #         if config.model["custom_model_config"].get(
+        #                 "add_nonstationarity_correction", False):
+        #             policy.view_requirements[
+        #                 "policy_signature"] = ViewRequirement(
+        #                 "policy_signature", used_for_compute_actions=True,
+        #                 shift=0)
 
-        self.workers.foreach_worker(add_view_requirements)
+        # self.workers.foreach_worker(add_view_requirements)
 
     def format_transition_for_siamese_input(self, x):
         embedding_size = self.siamese_config.get('embedding_size', 64)
@@ -396,32 +392,27 @@ class XADQN(DQN):
             priority_id = self.config.buffer_options["priority_id"]
             if priority_id == "td_errors":
                 for policy_id, info in info_dict.items():
-                    td_errors = info.get("td_error",
-                                         info[LEARNER_STATS_KEY].get(
-                                             "td_error"))
+                    td_errors = info.get("td_error", info[LEARNER_STATS_KEY].get("td_error"))
                     # samples.policy_batches[policy_id].set_get_interceptor(None)
                     samples.policy_batches[policy_id]["td_errors"] = td_errors
             # IMPORTANT: split train-batch into replay-batches, using batch_
             # uid, before updating priorities
             policy_batch_list = []
             for policy_id, batch in samples.policy_batches.items():
-                if (self.sample_batch_size > 1 and
-                        self.config.batch_mode == "complete_episodes"):
+                if (self.sample_batch_size > 1 and self.config.batch_mode == "complete_episodes"):
                     sub_batch_indexes = [
-                                            i
-                                            for i, infos in
-                                            enumerate(batch['infos'])
-                                            if "batch_uid" in infos
-                                        ] + [batch.count]
+                        i
+                        for i, infos in
+                        enumerate(batch['infos'])
+                        if "batch_uid" in infos
+                    ] + [batch.count]
                     _sub_batch_iter = (
-                        batch.slice(sub_batch_indexes[j],
-                                    sub_batch_indexes[j + 1])
+                        batch.slice(sub_batch_indexes[j], sub_batch_indexes[j + 1])
                         for j in range(len(sub_batch_indexes) - 1)
                     )
                 else:
                     _sub_batch_iter = batch.timeslices(self.sample_batch_size)
-                _sub_batch_iter = unique_everseen(
-                    _sub_batch_iter, key=get_batch_uid)
+                _sub_batch_iter = unique_everseen(_sub_batch_iter, key=get_batch_uid)
                 for i, _sub_batch in enumerate(_sub_batch_iter):
                     if i >= len(policy_batch_list):
                         policy_batch_list.append({})

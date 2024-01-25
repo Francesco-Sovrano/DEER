@@ -1,30 +1,7 @@
 # Explanation-Aware Experience Replay in Rule-Dense Environments
-
-Code accompanying the paper
-> ["Explanation-Aware Experience Replay in Rule-Dense Environments"](https://arxiv.org/abs/2109.14711)
-
-**N.B. The exact code used for [Explanation-Aware Experience Replay in Rule-Dense Environments](https://arxiv.org/abs/2109.14711) can be found inside the repo [proroklab/xaer](https://github.com/proroklab/xaer). This is an updated version.**
-
-XARL is a pip-installable python library, extending [RLlib](https://www.ray.io/rllib) with explanation-awareness capabilities, as described in our paper [Explanation-Aware Experience Replay in Rule-Dense Environments](https://arxiv.org/abs/2109.14711).
-This implementation of XARL supports:
-- DQN
-- DDPG
-- TD3
-- SAC
-- PPO
-
-XARL comes also with 2 new environments:
-- **GridDrive**: A 15×15 grid of cells, where every cell represents a different type of road (see Figure 2, left), with base types (e.g. motorway, school road, city) combined with other modifiers (roadworks, accidents, weather). Each vehicle will have a set of properties that define which type of vehicle they are (emergency, civilian, worker, etc). Complex combinations of these properties will define a strict speed limit for each cell, according to the culture. 
-- **GraphDrive**: An Euclidean representation of a planar graph with n vertices and m edges. The agent starts at the coordinates of one of those vertices and has to drive be- tween vertices (called ‘junctions’) in continuous space with Ackermann-based non-holonomic motion. Edges represent roads and are subjected to the same rules with properties to those seen in GridDrive plus a few extra rules to encourage the agent to stay close to the edges. The incentive is to drive as long as possible without committing speed infractions. In this setting, the agent not only has to master the rules of the roads, but also the control dynamics to steer and accelerate correctly. We test two variations of this environment: one with dense and another with sparse rewards. 
-
-*Environments*
-![Environments](images/environments.png)
-
-*Screenshot of GraphDrive*
-![Screenshot of GraphDrive](images/graphdrive.png)
   
 ## Installation
-This project has been tested on Debian 9 and macOS Mojave 10.14 with Python 3.7.9 and 3.8.6. 
+This project has been tested on Debian 9 and macOS Mojave 10.14 with Python 3.10. 
 The script [setup.sh](setup.sh) can be used to install XARL and and the environments in a python3 virtualenv.
 
 You can also install XARL by downloading this repo and running from within it: 
@@ -32,8 +9,26 @@ You can also install XARL by downloading this repo and running from within it:
 
 Before being able to run the [setup.sh](setup.sh) script you have to install: virtualenv, python3-dev, python3-pip and make. 
 
+## RLlib Patches
+RLlib has some known issues with PPO.
+For running any experiment on PPO with Tensorflow, to avoid raising a NaN error during training (a.k.a. run-time crash), add the following lines to `.env/lib/python3.10/site-packages/ray/rllib/models/tf/tf_action_dist.py`, after line 338
+```
+        log_std = tf.clip_by_value(log_std, MIN_LOG_NN_OUTPUT, MAX_LOG_NN_OUTPUT) # Clip `scale` values (coming from NN) to reasonable values.
+        self.mean = mean
+```
+For running any experiment on PPO with PyTorch, to avoid raising a NaN error during training (a.k.a. run-time crash), replace line 249 with the following lines to `.env/lib/python3.10/site-packages/ray/rllib/models/torch/torch_action_dist.py`
+```
+        log_std = torch.clamp(log_std, MIN_LOG_NN_OUTPUT, MAX_LOG_NN_OUTPUT)
+        self.log_std = log_std
+```
+
+Moreover, replace line 964 of `.env/lib/python3.10/site-packages/ray/rllib/policy/sample_batch.py` with:
+```
+        if self.get_interceptor is not None and key != SampleBatch.INFOS:
+```
+
 ## Usage
-To use XARL in your own project, please give a look to the boilerplate code in the demos, i.e. [demos/DQN/GridDrive-Easy/HW.py](demos/DQN/GridDrive-Easy/HW.py). Remember to change the different hyper-parameters according to your needs.
+To use XARL in your own project, please give a look to the boilerplate code in the demos, i.e. [demo/xadqn_hard-grid_normal-prio_nstep=3.py](demo/xadqn_hard-grid_normal-prio_nstep=3.py). Remember to change the different hyper-parameters according to your needs.
 You should also change the step function in your environment so that it returns also an explanation label attached to the reward, as show in the function `step` inside [environments/car_controller/grid_drive/grid_drive.py](environments/car_controller/grid_drive/grid_drive.py).
 
 ## Hyper-Parameters
@@ -69,35 +64,6 @@ The new hyper-parameters are:
 "cluster_overview_size": 1, # cluster_overview_size <= train_batch_size. If None, then cluster_overview_size is automatically set to train_batch_size. -- When building a single train batch, do not sample a new cluster before x batches are sampled from it. The closer cluster_overview_size is to train_batch_size, the faster is the batch sampling procedure.
 "collect_cluster_metrics": False, # Whether to collect metrics about the experience clusters. It consumes more resources.
 "ratio_of_samples_from_unclustered_buffer": 0, # 0 for no, 1 for full. Whether to sample in a randomised fashion from both a non-prioritised buffer of most recent elements and the XA prioritised buffer.
-```
-
-## Experiments
-XARL comes with a few demos for DQN, SAC and TD3, respectively on GridDrive and GraphDrive. 
-These demos have the same configuration of hyper-parameters used in the experiments of [Explanation-Aware Experience Replay in Rule-Dense Environments](https://arxiv.org/abs/2109.14711). 
-You may find all the demo scripts inside: [demos](demos).
-
-Inside the directory [images/experiments](images/experiments) you may find some plots obtained by performing an ablation study on a few selected hyper-parameters.
-In these plots, the default configuration is always HW (usually the red solid line meaning that How-Why explanations are used) with the same hyper-parameters used for the demos named HW. While all the other configurations are slight variations of HW.
-For example, as shown in the following image we have:
-- baseline: HW with `"clustering_scheme": None`
-- H: only How explanations; HW with `"clustering_scheme": 'H'`
-- W: only Why explanations; HW with `"clustering_scheme": 'W'`
-- HW bias: HW with `"'cluster_level_weighting': False`
-- HW xi: HW with `"clustering_xi": 1` for SAC or `"clustering_xi": 3` for DQN/TD3
-- HW sans simplicity: HW with `'cluster_prioritisation_strategy': None`
-
-*DQN - GridDrive Medium*
-![DQN - GridDrive Medium](images/experiments/DQN/DQN-GridDrive-Medium.png)
-
-## RLlib Patches
-RLlib has some known issues with PPO.
-For running any experiment on PPO with Tensorflow, to avoid raising a NaN error during training (a.k.a. run-time crash), add the following lines to ray/rllib/models/tf/tf_action_dist.py, after line 237
-```
-        log_std = tf.clip_by_value(log_std, MIN_LOG_NN_OUTPUT, MAX_LOG_NN_OUTPUT) # Clip `scale` values (coming from NN) to reasonable values.
-```
-For running any experiment on PPO with PyTorch, to avoid raising a NaN error during training (a.k.a. run-time crash), add the following lines to ray/rllib/models/torch/torch_action_dist.py, after line 159
-```
-        log_std = torch.clamp(log_std, MIN_LOG_NN_OUTPUT, MAX_LOG_NN_OUTPUT)
 ```
 
 ## Citations
