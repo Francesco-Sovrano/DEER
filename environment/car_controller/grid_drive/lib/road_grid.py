@@ -22,7 +22,7 @@ class RoadGrid:
 		self.set_random_position()
 
 	def set_random_position(self):
-		x, y = self.road_culture.np_random.randint(0,self.width), self.road_culture.np_random.randint(0,self.height)
+		x, y = self.road_culture.np_random.integers(0,self.width), self.road_culture.np_random.integers(0,self.height)
 		self.agent_position = (x,y)
 		self.road_culture.initialise_feasible_road(self.cells[x][y])
 

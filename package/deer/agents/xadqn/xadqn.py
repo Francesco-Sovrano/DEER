@@ -17,14 +17,13 @@ from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED,
     NUM_AGENT_STEPS_SAMPLED,
+    LAST_TARGET_UPDATE_TS,
+    NUM_TARGET_UPDATES,
+    SAMPLE_TIMER,
 )
 from ray.rllib.execution.train_ops import (
     train_one_step,
     multi_gpu_train_one_step,
-)
-from ray.rllib.utils.metrics import (
-    LAST_TARGET_UPDATE_TS,
-    NUM_TARGET_UPDATES,
 )
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
@@ -325,14 +324,14 @@ class XADQN(DQN):
         train_results = {}
 
         # We alternate between storing new samples and sampling and training
-        store_weight, sample_and_train_weight = calculate_rr_weights(
-            self.config)
+        store_weight, sample_and_train_weight = calculate_rr_weights(self.config)
         siamese_losses = []
         for _ in range(store_weight):
             # Sample (MultiAgentBatch) from workers.
-            new_sample_batch = synchronous_parallel_sample(
-                worker_set=self.workers, concat=True
-            )
+            with self._timers[SAMPLE_TIMER]:
+                new_sample_batch = synchronous_parallel_sample(
+                    worker_set=self.workers, concat=True
+                )
 
             # Update counters
             self._counters[
@@ -443,14 +442,12 @@ class XADQN(DQN):
                 ))
 
                 # Postprocess batch before we learn on it
-                post_fn = self.config.get("before_learn_on_batch") or (
-                    lambda b, *a: b)
+                post_fn = self.config.get("before_learn_on_batch") or (lambda b, *a: b)
                 train_batch = post_fn(train_batch, self.workers, self.config)
 
                 # Learn on training batch.
-                # Use simple optimizer (only for multi-agent or tf-eager;
-                # all other cases should use the multi-GPU optimizer,
-                # even if only using 1 GPU)
+                # Use simple optimizer (only for multi-agent or tf-eager; all other
+                # cases should use the multi-GPU optimizer, even if only using 1 GPU)
                 if self.config.get("simple_optimizer") is True:
                     train_results = train_one_step(self, train_batch)
                 else:
@@ -460,8 +457,8 @@ class XADQN(DQN):
                 # Update replay buffer priorities.
                 update_priorities(train_batch, train_results)
 
-                lu = self._counters[LAST_TARGET_UPDATE_TS]
-                if cur_ts - lu >= self.config.target_network_update_freq:
+                last_update = self._counters[LAST_TARGET_UPDATE_TS]
+                if cur_ts - last_update >= self.config.target_network_update_freq:
                     to_update = self.workers.local_worker().get_policies_to_train()
                     self.workers.local_worker().foreach_policy_to_train(
                         lambda p, pid: pid in to_update and p.update_target()

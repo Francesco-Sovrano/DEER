@@ -93,7 +93,7 @@ class CescoDriveV0(gym.Env):
 			}),
 		})
 	
-	def reset(self):
+	def reset(self, *, seed=None, options=None):
 		self.is_over = False
 		self.episode_statistics = {}
 		self._step = 0
@@ -119,7 +119,7 @@ class CescoDriveV0(gym.Env):
 		# init log variables
 		self.cumulative_reward = 0
 		self.avg_speed_per_steps = 0
-		return self.last_state
+		return self.last_state, {}
 			
 	def get_new_obstacles(self):
 		if self.max_obstacle_count <= 0:
@@ -292,7 +292,7 @@ class CescoDriveV0(gym.Env):
 			if self.max_obstacle_count > 0:
 				stats["avoid_collision"] = 0 if dead else 1
 			info_dict["stats_dict"] = self.episode_statistics = stats
-		return [state, reward, terminal, info_dict]
+		return [state, reward, terminal, terminal, info_dict]
 		
 	def has_collided_obstacle(self, old_car_point, car_point, obstacle):
 		return segment_collide_circle(circle=obstacle, segment=(old_car_point, car_point))

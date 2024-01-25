@@ -91,7 +91,7 @@ class GridDrive(gym.Env):
 		})
 		self.step_counter = 0
 
-	def reset(self):
+	def reset(self, *, seed=None, options=None):
 		self.is_over = False
 		self.culture.np_random = self.np_random
 		self.viewer = None
@@ -111,7 +111,7 @@ class GridDrive(gym.Env):
 		self.grid_view[x][y][self.VISITED_CELL_GRID_IDX] = 1 # set current cell as visited
 		self.visited_cells = 1
 		self.speed = self.grid.agent["Speed"]
-		return self.get_state()
+		return self.get_state(), {}
 
 	def step(self, action_vector):
 		self.step_counter += 1
@@ -144,6 +144,7 @@ class GridDrive(gym.Env):
 		return [
 			self.get_state(), # observation
 			reward, 
+			terminated_episode,
 			terminated_episode,
 			info_dict,
 		]

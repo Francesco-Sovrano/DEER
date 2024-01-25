@@ -72,11 +72,11 @@ if not CENTRALISED_TRAINING:
 		f'agent-{i}'
 		for i in range(number_of_agents)
 	}
-	policy_mapping_fn = lambda agent_id: f'agent-{agent_id}'
+	policy_mapping_fn = lambda agent_id, episode, worker: f'agent-{agent_id}'
 else:
 	# policy_graphs = {DEFAULT_POLICY_ID: (None, obs_space, act_space, CONFIG)}
 	policy_graphs = {DEFAULT_POLICY_ID}
-	policy_mapping_fn = lambda agent_id: DEFAULT_POLICY_ID
+	policy_mapping_fn = lambda agent_id, episode, worker: DEFAULT_POLICY_ID
 
 OPTIONS["multiagent"] = {
 	"policies": policy_graphs,

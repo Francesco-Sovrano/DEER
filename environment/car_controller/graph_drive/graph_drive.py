@@ -191,7 +191,7 @@ class GraphDrive(gym.Env):
 		# print(junction_view.shape)
 		return road_view, junction_view
 	
-	def reset(self):
+	def reset(self, *, seed=None, options=None):
 		self.culture.np_random = self.np_random
 		# print(0, self.np_random.random())
 		self.is_over = False
@@ -227,7 +227,7 @@ class GraphDrive(gym.Env):
 		# init log variables
 		self.cumulative_reward = 0
 		self.sum_speed = 0
-		return self.last_state
+		return self.last_state, {}
 
 	@staticmethod
 	def get_closest_junction(junction_list, point):
@@ -342,7 +342,7 @@ class GraphDrive(gym.Env):
 				"out_of_time": 1 if out_of_time else 0,
 				"visited_junctions": len(self.visited_junctions),
 			}
-		return [state, reward, terminal, info_dict]
+		return [state, reward, terminal, terminal, info_dict]
 			
 	def get_info(self):
 		return f"speed={self.speed}, steering_angle={self.steering_angle}, orientation={self.car_orientation}\n"

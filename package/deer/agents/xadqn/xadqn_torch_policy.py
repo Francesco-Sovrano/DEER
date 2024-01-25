@@ -195,6 +195,8 @@ def xadqn_q_losses(policy, model, _, train_batch):
 			q_probs_tp1 * torch.unsqueeze(q_tp1_best_one_hot_selection, -1), 1
 		)
 
+	loss_fn = huber_loss if policy.config["td_error_loss_fn"] == "huber" else l2_loss
+
 	q_loss = QLoss(
 		q_t_selected,
 		q_logits_t_selected,
@@ -208,6 +210,7 @@ def xadqn_q_losses(policy, model, _, train_batch):
 		config["num_atoms"],
 		config["v_min"],
 		config["v_max"],
+		loss_fn,
 	)
 
 	# Store values for stats function in model (tower), such that for
@@ -222,17 +225,14 @@ def xadqn_q_losses(policy, model, _, train_batch):
 class TorchComputeTDErrorMixin:
 	def __init__(self):
 		def compute_td_error(obs_t, act_t, rew_t, obs_tp1, done_mask, importance_weights, policy_signature=None):
-			input_dict = {
-				SampleBatch.CUR_OBS: obs_t,
-				SampleBatch.ACTIONS: act_t,
-				SampleBatch.REWARDS: rew_t,
-				SampleBatch.NEXT_OBS: obs_tp1,
-				SampleBatch.TERMINATEDS: done_mask,
-				PRIO_WEIGHTS: importance_weights,
-			}
+			input_dict = self._lazy_tensor_dict({SampleBatch.CUR_OBS: obs_t})
+			input_dict[SampleBatch.ACTIONS] = act_t
+			input_dict[SampleBatch.REWARDS] = rew_t
+			input_dict[SampleBatch.NEXT_OBS] = obs_tp1
+			input_dict[SampleBatch.TERMINATEDS] = done_mask
+			input_dict[PRIO_WEIGHTS] = importance_weights
 			if policy_signature is not None:
 				input_dict["policy_signature"] = policy_signature
-			input_dict = self._lazy_tensor_dict(input_dict)
 			# Do forward pass on loss to update td error attribute
 			xadqn_q_losses(self, self.model, None, input_dict)
 			return self.model.tower_stats["q_loss"].td_error
