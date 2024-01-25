@@ -70,23 +70,42 @@ def special_adjust_nstep(n_step, gamma, batch):
 		# )
 
 def xa_postprocess_nstep_and_prio(policy, batch, other_agent=None, episode=None):
+	# N-step Q adjustments.
 	n_step = random.uniform(0,1)*policy.config['n_step'] if policy.config['n_step_random_sampling'] else policy.config['n_step'] # double-check that the random seed initialization done within the algorithm constructor is reaching this point
 	n_step = int(np.ceil(n_step))
-	# N-step Q adjustments.
 	if n_step > 1:
 		if policy.config['n_step_annealing_scheduler']['fn']:
 			special_adjust_nstep(n_step, policy.config["gamma"], batch)
 		else:
 			adjust_nstep(n_step, policy.config["gamma"], batch)
+
+	# Create dummy prio-weights (1.0) in case we don't have any in
+	# the batch.
 	if PRIO_WEIGHTS not in batch:
 		batch[PRIO_WEIGHTS] = np.ones_like(batch[SampleBatch.REWARDS])
+
 	if policy.config["buffer_options"]["priority_id"] == "td_errors":
 		if policy.config["model"]["custom_model_config"].get("add_nonstationarity_correction", False):
 			# print('a', batch.count)
 			batch = add_policy_signature(batch, policy)
-			batch["td_errors"] = policy.compute_td_error(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS], batch[SampleBatch.REWARDS], batch[SampleBatch.NEXT_OBS], batch[SampleBatch.DONES], batch[PRIO_WEIGHTS], batch["policy_signature"])
+			batch["td_errors"] = policy.compute_td_error(
+				batch[SampleBatch.CUR_OBS], 
+				batch[SampleBatch.ACTIONS], 
+				batch[SampleBatch.REWARDS], 
+				batch[SampleBatch.NEXT_OBS], 
+				batch[SampleBatch.TERMINATEDS], 
+				batch[PRIO_WEIGHTS], 
+				batch["policy_signature"]
+			)
 		else:
-			batch["td_errors"] = policy.compute_td_error(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS], batch[SampleBatch.REWARDS], batch[SampleBatch.NEXT_OBS], batch[SampleBatch.DONES], batch[PRIO_WEIGHTS])
+			batch["td_errors"] = policy.compute_td_error(
+				batch[SampleBatch.CUR_OBS], 
+				batch[SampleBatch.ACTIONS], 
+				batch[SampleBatch.REWARDS], 
+				batch[SampleBatch.NEXT_OBS], 
+				batch[SampleBatch.TERMINATEDS], 
+				batch[PRIO_WEIGHTS], 
+			)
 	return batch
 
 def xadqn_q_losses(policy, model, _, train_batch):
@@ -183,7 +202,7 @@ def xadqn_q_losses(policy, model, _, train_batch):
 		q_probs_tp1_best,
 		train_batch[PRIO_WEIGHTS],
 		train_batch[SampleBatch.REWARDS],
-		train_batch[SampleBatch.DONES].float(),
+		train_batch[SampleBatch.TERMINATEDS].float(),
 		config["gamma"],
 		config["n_step"],
 		config["num_atoms"],
@@ -208,7 +227,7 @@ class TorchComputeTDErrorMixin:
 				SampleBatch.ACTIONS: act_t,
 				SampleBatch.REWARDS: rew_t,
 				SampleBatch.NEXT_OBS: obs_tp1,
-				SampleBatch.DONES: done_mask,
+				SampleBatch.TERMINATEDS: done_mask,
 				PRIO_WEIGHTS: importance_weights,
 			}
 			if policy_signature is not None:

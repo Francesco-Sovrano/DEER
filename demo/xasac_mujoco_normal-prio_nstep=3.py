@@ -10,7 +10,7 @@ import copy
 from ray.tune.registry import get_trainable_cls, _global_registry, ENV_CREATOR
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from deer.utils.workflow import train
-from deer.agents.xaddpg import XATD3, XATD3Config
+from deer.agents.xasac import XASAC, XASACConfig
 
 # Import environments
 import sys
@@ -18,7 +18,7 @@ sys.path.append(".")  # Adds the parent directory to the system path.
 sys.path.append("..")  # Adds the parent directory to the system path.
 from environment import *
 
-SELECTED_ENV = "Humanoid-v3"
+SELECTED_ENV = "Humanoid-v4"
 EXPERIENCE_BUFFER_SIZE = 2**12
 CENTRALISED_TRAINING = True
 TRAINING_STEPS = 2**17
@@ -208,7 +208,7 @@ print('Config:', CONFIG)
 # Register models
 from ray.rllib.models import ModelCatalog
 from deer.models import get_model_catalog_dict
-for k,v in get_model_catalog_dict('td3', CONFIG.get("framework",'torch')).items():
+for k,v in get_model_catalog_dict('sac', CONFIG.get("framework",'torch')).items():
 	ModelCatalog.register_custom_model(k, v)
 
 ####################################################################################
@@ -217,4 +217,4 @@ for k,v in get_model_catalog_dict('td3', CONFIG.get("framework",'torch')).items(
 ray.shutdown()
 ray.init(ignore_reinit_error=True)
 
-train(XATD3, XATD3Config, CONFIG, SELECTED_ENV, test_every_n_step=TRAINING_STEPS*CONFIG["train_batch_size"], stop_training_after_n_step=TRAINING_STEPS*CONFIG["train_batch_size"])
+train(XASAC, XASACConfig, CONFIG, SELECTED_ENV, test_every_n_step=TRAINING_STEPS*CONFIG["train_batch_size"], stop_training_after_n_step=TRAINING_STEPS*CONFIG["train_batch_size"])

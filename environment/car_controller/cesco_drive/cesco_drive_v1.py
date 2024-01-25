@@ -48,7 +48,7 @@ class CescoDriveV1(CescoDriveV0):
 			for rule in ['move_forward','avoid_collision','follow_lane','respect_speed_limit','go_fast']:
 				stats[rule] = 1 if reward_type!=rule else 0
 			self.episode_statistics = stats
-		return [state, reward, terminal, {'explanation':reward_type}]
+		return [state, reward, terminal, terminal, {'explanation':reward_type}]
 	
 	def get_reward(self, car_speed, car_point, old_car_point, car_progress, car_position, obstacles):
 		# "Move forward" rule

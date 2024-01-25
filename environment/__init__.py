@@ -4,7 +4,7 @@ from ray.tune.registry import register_env
 from environment.custom_metrics import CustomEnvironmentCallbacks
 
 ### ATARI + Mujoco
-import gym
+import gymnasium as gym
 
 # Get the list of all environment IDs from gymnasium
 env_ids = gym.envs.registry.keys()

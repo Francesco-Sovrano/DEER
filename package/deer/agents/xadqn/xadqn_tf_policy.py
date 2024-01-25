@@ -84,7 +84,7 @@ def xadqn_q_losses(policy, model, _, train_batch):
 		q_dist_tp1_best,
 		train_batch[PRIO_WEIGHTS],
 		train_batch[SampleBatch.REWARDS],
-		tf.cast(train_batch[SampleBatch.DONES], tf.float32),
+		tf.cast(train_batch[SampleBatch.TERMINATEDS], tf.float32),
 		config["gamma"],
 		config["n_step"],
 		config["num_atoms"],
@@ -109,7 +109,7 @@ class TFComputeTDErrorMixin:
 				SampleBatch.ACTIONS: tf.convert_to_tensor(act_t),
 				SampleBatch.REWARDS: tf.convert_to_tensor(rew_t),
 				SampleBatch.NEXT_OBS: tf.convert_to_tensor(obs_tp1),
-				SampleBatch.DONES: tf.convert_to_tensor(done_mask),
+				SampleBatch.TERMINATEDS: tf.convert_to_tensor(done_mask),
 				PRIO_WEIGHTS: tf.convert_to_tensor(importance_weights),
 			}
 			if policy_signature is not None:

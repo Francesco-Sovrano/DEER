@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import gym
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium.utils import seeding
 import numpy as np
 
 import copy

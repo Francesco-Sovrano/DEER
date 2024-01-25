@@ -2,7 +2,7 @@ from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveMode
 from ray.rllib.utils.framework import try_import_torch
 import logging
 import numpy as np
-import gym
+import gymnasium as gym
 import torch_geometric
 
 logger = logging.getLogger(__name__)

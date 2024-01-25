@@ -1,6 +1,6 @@
 import ray.rllib
 from ray.rllib.utils.framework import try_import_torch
-import gym
+import gymnasium as gym
 import numpy as np
 import logging
 import itertools

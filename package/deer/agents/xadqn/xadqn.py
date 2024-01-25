@@ -22,10 +22,9 @@ from ray.rllib.execution.train_ops import (
     train_one_step,
     multi_gpu_train_one_step,
 )
-from ray.rllib.execution.common import (
+from ray.rllib.utils.metrics import (
     LAST_TARGET_UPDATE_TS,
     NUM_TARGET_UPDATES,
-    STEPS_TRAINED_COUNTER,
 )
 from ray.rllib.utils.metrics import SYNCH_WORKER_WEIGHTS_TIMER
 
@@ -40,7 +39,7 @@ from ray.rllib.utils.schedules.linear_schedule import *
 from deer.experience_buffers.buffer.buffer import Buffer
 from deer.models.torch.head_generator.siamese_model_wrapper import \
     SiameseAdaptiveModel
-import gym
+import gymnasium as gym
 from ray.rllib.utils.framework import try_import_torch
 from collections import deque, defaultdict
 

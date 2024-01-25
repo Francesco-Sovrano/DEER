@@ -76,7 +76,7 @@ def xasac_actor_critic_loss(policy, model, dist_class, train_batch):
 		# Discrete case: "Best" means weighted by the policy (prob) outputs.
 		q_tp1_best = tf.reduce_sum(tf.multiply(policy_tp1, q_tp1), axis=-1)
 		q_tp1_best_masked = (
-			1.0 - tf.cast(train_batch[SampleBatch.DONES], tf.float32)
+			1.0 - tf.cast(train_batch[SampleBatch.TERMINATEDS], tf.float32)
 		) * q_tp1_best
 	# Continuous actions case.
 	else:
@@ -133,7 +133,7 @@ def xasac_actor_critic_loss(policy, model, dist_class, train_batch):
 
 		q_tp1_best = tf.squeeze(input=q_tp1, axis=len(q_tp1.shape) - 1)
 		q_tp1_best_masked = (
-			1.0 - tf.cast(train_batch[SampleBatch.DONES], tf.float32)
+			1.0 - tf.cast(train_batch[SampleBatch.TERMINATEDS], tf.float32)
 		) * q_tp1_best
 
 	# Compute RHS of bellman equation for the Q-loss (critic(s)).
@@ -213,7 +213,7 @@ class TFComputeTDErrorMixin:
 				SampleBatch.ACTIONS: tf.convert_to_tensor(act_t),
 				SampleBatch.REWARDS: tf.convert_to_tensor(rew_t),
 				SampleBatch.NEXT_OBS: tf.convert_to_tensor(obs_tp1),
-				SampleBatch.DONES: tf.convert_to_tensor(done_mask),
+				SampleBatch.TERMINATEDS: tf.convert_to_tensor(done_mask),
 				PRIO_WEIGHTS: tf.convert_to_tensor(importance_weights),
 			}
 			if policy_signature is not None:
