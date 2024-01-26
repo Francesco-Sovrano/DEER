@@ -1,6 +1,5 @@
 model_catalog_dict = {}
 
-### PyTorch      
 from deer.models.torch.head_generator.adaptive_model_wrapper import AdaptiveModel
 from deer.models.torch.head_generator.comm_adaptive_model_wrapper import CommAdaptiveModel
 from deer.models.torch.dqn import TorchAdaptiveMultiHeadDQN
@@ -22,14 +21,17 @@ model_catalog_dict['torch'] = {
     # },
 }
 
+
 def get_algorithm_label_from_name(alg_name):
-    for l in ['dqn','sac','ppo']:
+    for l in ['dqn', 'sac', 'ppo']:
         if alg_name.endswith(l):
             return l
     return None
 
+
 def get_framework_label_from_name(framework):
     return 'torch' if framework.startswith('torch') else 'tf'
+
 
 def get_model_catalog_dict(alg_name, framework):
     return model_catalog_dict[get_framework_label_from_name(framework)][get_algorithm_label_from_name(alg_name)]

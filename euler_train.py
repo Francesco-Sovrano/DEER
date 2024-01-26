@@ -269,23 +269,26 @@ def run_training(args):
     }
     print('Config:', configs)
 
-    # Register models
-    for k, v in get_model_catalog_dict(
-            'dqn', configs.get("framework", 'torch')).items():
-        ModelCatalog.register_custom_model(k, v)
-
     num_gpus = args.gpus
     if args.no_gpu:
         num_gpus = 0
 
+    alg_name = ''
     if args.algo == 'xadqn':
         algo_class = XADQN
         algo_config = XADQNConfig
+        alg_name = 'dqn'
     elif args.algo == 'xasac':
         algo_class = XASAC
         algo_config = XASACConfig
+        alg_name = 'sac'
     else:
         raise ValueError(f"Unknown algorithm {args.algo}")
+
+    # Register models
+    for k, v in get_model_catalog_dict(
+            alg_name, configs.get("framework", 'torch')).items():
+        ModelCatalog.register_custom_model(k, v)
 
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
