@@ -72,7 +72,7 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             # in_dim = 530
             in_dim = 530
         elif env == "Ant-v4":
-            in_dim = 111
+            in_dim = 63
         else:
             raise NotImplementedError(f"env {env} not supported for "
                                       f"SiameseAdaptiveModel")
