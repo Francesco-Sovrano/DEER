@@ -18,7 +18,7 @@ default: &default
     use_siamese: true
     buffer_size: 200
     update_frequency: 5000
-    embedding_size: 2048
+    embedding_size: 128
     loss_margin: 1
   tau: !!float 1e-4
   buffer_options:

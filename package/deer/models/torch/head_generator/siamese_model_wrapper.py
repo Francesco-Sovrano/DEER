@@ -78,14 +78,14 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                                       f"SiameseAdaptiveModel")
 
         self.last_fc = nn.Sequential(
-            nn.Linear(in_features=in_dim, out_features=1024),
+            nn.Linear(in_features=in_dim, out_features=512),
             nn.ReLU(),
             # nn.Flatten(start_dim=1),
             # nn.BatchNorm1d(1024),
-            nn.Linear(in_features=1024, out_features=1024),
+            nn.Linear(in_features=512, out_features=512),
             nn.ReLU(),
             # nn.BatchNorm1d(1024),
-            nn.Linear(in_features=1024, out_features=embedding_size),
+            nn.Linear(in_features=512, out_features=embedding_size),
             nn.ReLU(),
             # nn.BatchNorm1d(embedding_size),
         )
