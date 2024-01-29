@@ -62,9 +62,6 @@ GraphDrive-Easy:
 Ant-v4:
   <<: *default
 
-Ant-v3:
-  <<: *default
-
 HalfCheetah-v4:
   <<: *default
 
