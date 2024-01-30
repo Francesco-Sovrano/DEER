@@ -34,7 +34,7 @@ def run_mujoco_siamese_experiments(args):
     new_args_dict['time'] = 100
     new_args_dict['memory'] = 20000
     new_args_dict['total_n_steps'] = 2000000
-    new_args_dict['no_gpu'] = False
+    new_args_dict['no_gpu'] = True
     new_args_dict['algo'] = 'xasac'
     new_args_dict['ml_config_path'] = Path("configs/xasac_siamese_config.yaml")
 
