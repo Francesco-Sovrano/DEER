@@ -23,36 +23,37 @@ def run_mujoco_siamese_experiments(args):
     envs = ['HalfCheetah-v4', 'Hopper-v4', 'Walker2d-v4', 'Ant-v4',
             'Humanoid-v4', 'Swimmer-v4']
     methods = ["siamese"]
-    siamese_buffer_size = [100, 500]
+    er_buffer_size = [1024, 2048, 4096, 8192]
     siamese_embedding_size = [512, 2048]
     siamese_update_frequency = [1000, 30000]
     siamese_loss_margin = [2**0, 2**20]
+    update_steps = 5
 
     new_args_dict = vars(args).copy()
     res_dir = args.results_dir / 'xasac_siamese'
     new_args_dict['repetitions'] = 1
     new_args_dict['time'] = 100
     new_args_dict['memory'] = 20000
-    new_args_dict['total_n_steps'] = 2000000
+    new_args_dict['total_n_steps'] = 3000000
     new_args_dict['no_gpu'] = True
     new_args_dict['algo'] = 'xasac'
     new_args_dict['ml_config_path'] = Path("configs/xasac_siamese_config.yaml")
 
     for env in envs:
         for method in methods:
-            for size in siamese_buffer_size:
+            for b_size in er_buffer_size:
                 for embedding_size in siamese_embedding_size:
                     for update_freq in siamese_update_frequency:
                         for loss_margin in siamese_loss_margin:
                             print(f"Running experiment with env {env}, "
                                   f"method {method}, "
-                                  f"buffer_size={size}, "
+                                  f"buffer_size={b_size}, "
                                   f"embedding_size={embedding_size}, "
                                   f"update_frequency={update_freq}, "
                                   f"loss_margin={loss_margin}")
 
                             run_res_dir = res_dir / env / f"method_{method}" \
-                                                          f"_buffer_{size}" \
+                                                          f"_buffer_{b_size}" \
                                                           f"_embedding_" \
                                                           f"{embedding_size}" \
                                                           f"_update_" \
@@ -74,11 +75,13 @@ def run_mujoco_siamese_experiments(args):
                             if method == "siamese":
                                 configs[env]['siamese'] = {
                                     'use_siamese': True,
-                                    'buffer_size': size,
+                                    'buffer_size': 1024,
                                     'embedding_size': embedding_size,
                                     'update_frequency': update_freq,
+                                    'update_steps': update_steps,
                                     'loss_margin': loss_margin
                                 }
+                                configs[env]['buffer_options']['global_size'] = b_size
                             else:
                                 raise ValueError("This should not happen")
 
@@ -91,46 +94,49 @@ def run_mujoco_siamese_experiments(args):
 
     # Run baseline experiments
     methods = ["clustering", "no_clustering"]
+    er_buffer_size = [1024, 2048, 4096, 8192, 16384]
     new_args_dict = vars(args).copy()
     res_dir = args.results_dir / 'xasac_siamese'
     new_args_dict['repetitions'] = 1
     new_args_dict['time'] = 100
     new_args_dict['memory'] = 20000
-    new_args_dict['total_n_steps'] = 2000000
+    new_args_dict['total_n_steps'] = 3000000
     new_args_dict['no_gpu'] = True
     new_args_dict['algo'] = 'xasac'
     new_args_dict['ml_config_path'] = Path("configs/xasac_siamese_config.yaml")
     for env in envs:
         for method in methods:
-            print(f"Running experiment with env {env}, method {method}")
+            for b_size in er_buffer_size:
+                print(f"Running experiment with env {env}, method {method}")
 
-            run_res_dir = res_dir / env / f"method_{method}"
-            run_res_dir.mkdir(parents=True, exist_ok=True)
-            new_args_dict['results_dir'] = run_res_dir
-            new_args_dict['run_id'] = f"{args.algo}_env_{env}"
-            new_args_dict['env'] = env
+                run_res_dir = res_dir / env / f"method_{method}_buffer_{b_size}"
+                run_res_dir.mkdir(parents=True, exist_ok=True)
+                new_args_dict['results_dir'] = run_res_dir
+                new_args_dict['run_id'] = f"{args.algo}_env_{env}"
+                new_args_dict['env'] = env
 
-            with open(args.ml_config_path) as file:
-                configs = yaml.load(file, Loader=yaml.FullLoader)
-            time = datetime.now().strftime('%H%M%S%f')
-            name = f"{args.algo}_{env}_{time}"
-            new_config_path = run_res_dir / (
-                    name + "_" + Path(args.ml_config_path).name)
+                with open(args.ml_config_path) as file:
+                    configs = yaml.load(file, Loader=yaml.FullLoader)
+                time = datetime.now().strftime('%H%M%S%f')
+                name = f"{args.algo}_{env}_{time}"
+                new_config_path = run_res_dir / (
+                        name + "_" + Path(args.ml_config_path).name)
 
-            if method == "siamese":
-                raise ValueError("This should not happen")
-            else:
-                configs[env]['siamese']['use_siamese'] = False
-                if method == "no_clustering":
-                    configs[env]['clustering_options'][
-                        'clustering_scheme'] = None
+                if method == "siamese":
+                    raise ValueError("This should not happen")
+                else:
+                    configs[env]['siamese']['use_siamese'] = False
+                    if method == "no_clustering":
+                        configs[env]['clustering_options'][
+                            'clustering_scheme'] = None
+                    configs[env]['buffer_options']['global_size'] = b_size
 
-            with open(new_config_path, 'w') as file:
-                yaml.dump(configs, file)
+                with open(new_config_path, 'w') as file:
+                    yaml.dump(configs, file)
 
-            new_args_dict['ml_config_path'] = new_config_path
-            exp_args = argparse.Namespace(**new_args_dict)
-            submit_jobs(exp_args)
+                new_args_dict['ml_config_path'] = new_config_path
+                exp_args = argparse.Namespace(**new_args_dict)
+                submit_jobs(exp_args)
 
 
 def run_griddrive_siamese_experiments(args):

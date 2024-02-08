@@ -16,15 +16,17 @@ default: &default
   num_steps_sampled_before_learning_starts: 16384
   siamese:
     use_siamese: true
-    buffer_size: 200
-    update_frequency: 5000
-    embedding_size: 128
-    loss_margin: 1
+    buffer_size: 1000
+    update_frequency: 30000
+    update_steps: 10
+    embedding_size: 512
+    loss_margin: 100000000
   tau: !!float 1e-4
   buffer_options:
     prioritized_replay: true
     centralised_buffer: true
-    global_size: 16384
+#    global_size: 16384
+    global_size: 4096
     priority_id: td_errors
     priority_lower_limit: 0
     priority_aggregation_fn: np.mean

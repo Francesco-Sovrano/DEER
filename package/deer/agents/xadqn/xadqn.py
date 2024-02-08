@@ -68,6 +68,7 @@ def init_xa_config(self):
         "use_siamese": True,
         "buffer_size": 10,
         "update_frequency": 10000,
+        "update_steps": 4,
         "embedding_size": 64,
     }
     self.n_step_annealing_scheduler = {
@@ -345,6 +346,7 @@ class XADQN(DQN):
 
             ############
             if self.use_siamese:
+                siamese_samples_start = time.time()
                 explanation_batch_dict = defaultdict(list)
                 for sub_batch in sub_batch_iter:
                     pol_sub_batch = sub_batch['default_policy']
@@ -354,21 +356,28 @@ class XADQN(DQN):
                     self.positive_buffer.add(pol_sub_batch, explanatory_label)
 
                 # TODO: check if there is a way to avoid this check
-                if len(explanation_batch_dict.keys()) >= 2:
-                    anchor_class, negative_class = random.sample(list(
-                        explanation_batch_dict.keys()), 2)
-                    # TODO: check if there is a way to avoid this check too
-                    if len(self.positive_buffer.get_batches(anchor_class)) < 1:
-                        print(f"Warning: not enough positive samples for "
-                              f"class {anchor_class} at time step "
-                              f"{self._counters['training_steps']}")
-                        continue
-                    self.triplet_buffer['anchor'].append(random.choice(
-                        explanation_batch_dict[anchor_class]))
-                    self.triplet_buffer['positive'].append(random.choice(
-                        self.positive_buffer.get_batches(anchor_class)))
-                    self.triplet_buffer['negative'].append(random.choice(
-                        explanation_batch_dict[negative_class]))
+                if len(explanation_batch_dict.keys()) < 2:
+                    print(f"Warning: not enough different explanatory labels "
+                          f"at time step {self._counters['training_steps']}")
+                    continue
+
+                anchor_class, negative_class = random.sample(list(
+                    explanation_batch_dict.keys()), 2)
+                # TODO: check if there is a way to avoid this check too
+                if len(self.positive_buffer.get_batches(anchor_class)) < 1:
+                    print(f"Warning: not enough positive samples for "
+                          f"class {anchor_class} at time step "
+                          f"{self._counters['training_steps']}")
+                    continue
+                self.triplet_buffer['anchor'].append(random.choice(
+                    explanation_batch_dict[anchor_class]))
+                self.triplet_buffer['positive'].append(random.choice(
+                    self.positive_buffer.get_batches(anchor_class)))
+                self.triplet_buffer['negative'].append(random.choice(
+                    explanation_batch_dict[negative_class]))
+                siamese_samples_end = time.time()
+                print(f"Time to sample siamese batches: "
+                      f"{siamese_samples_end - siamese_samples_start} seconds")
             ############
 
             total_buffer_additions = sum(
@@ -462,28 +471,31 @@ class XADQN(DQN):
                 with self._timers[SYNCH_WORKER_WEIGHTS_TIMER]:
                     self.workers.sync_weights(global_vars=global_vars)
 
-            ############
-            if self.use_siamese:
-                anchor = self.triplet_buffer['anchor']
-                positive = self.triplet_buffer['positive']
-                negative = self.triplet_buffer['negative']
+                ############
+                if self.use_siamese:
+                    # update siamese model
+                    for _ in range(self.siamese_config['update_steps']):
+                        anchor = self.triplet_buffer['anchor']
+                        positive = self.triplet_buffer['positive']
+                        negative = self.triplet_buffer['negative']
 
-                if anchor and positive and negative:
-                    if 'siamese' not in train_results:
-                        train_results['siamese'] = {}
+                        if anchor and positive and negative:
+                            if 'siamese' not in train_results:
+                                train_results['siamese'] = {}
 
-                    self.siamese_model.train()
-                    self.optimizer.zero_grad()
+                            self.siamese_model.train()
+                            self.optimizer.zero_grad()
 
-                    out_a = self.siamese_model(anchor)
-                    out_p = self.siamese_model(positive)
-                    out_n = self.siamese_model(negative)
+                            out_a = self.siamese_model(anchor)
+                            out_p = self.siamese_model(positive)
+                            out_n = self.siamese_model(negative)
 
-                    loss = self.loss_fn(out_a, out_p, out_n)
-                    loss.backward()
-                    self.optimizer.step()
-                    train_results['siamese']['siamese_loss'] = loss.item()
+                            loss = self.loss_fn(out_a, out_p, out_n)
+                            loss.backward()
+                            self.optimizer.step()
+                            train_results['siamese']['siamese_loss'] = loss.item()
 
+                    # make clusters
                     lsu = self._counters['last_siamese_update']
                     if cur_ts - lsu >= self.siamese_config["update_frequency"]:
                         self.siamese_model.eval()
@@ -504,7 +516,7 @@ class XADQN(DQN):
                             train_results['siamese'][name][
                                 'num_clusters'] = len(
                                 buffer.get_available_clusters())
-            ############
+                ############
 
             train_end = time.time()
             print(f"Time elapsed training at timestep {cur_ts}:"
