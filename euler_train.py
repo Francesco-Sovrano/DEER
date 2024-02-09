@@ -76,7 +76,7 @@ def run_mujoco_siamese_experiments(args):
                             if method == "siamese":
                                 configs[env]['siamese'] = {
                                     'use_siamese': True,
-                                    'buffer_size': 1024,
+                                    'buffer_size': 512,
                                     'embedding_size': embedding_size,
                                     'update_frequency': update_freq,
                                     'update_steps': update_steps,
@@ -94,8 +94,8 @@ def run_mujoco_siamese_experiments(args):
                             submit_jobs(exp_args)
 
     # Run baseline experiments
-    methods = ["clustering", "no_clustering"]
-    er_buffer_size = [1024, 2048, 4096, 8192, 16384]
+    methods = ["gt_clustering", "no_clustering"]
+    er_buffer_size = [4096, 8192, 100000, 1000000]
     new_args_dict = vars(args).copy()
     res_dir = args.results_dir / 'xasac_siamese'
     new_args_dict['repetitions'] = 1
