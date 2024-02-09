@@ -376,8 +376,8 @@ class XADQN(DQN):
                 self.triplet_buffer['negative'].append(random.choice(
                     explanation_batch_dict[negative_class]))
                 siamese_samples_end = time.time()
-                print(f"Time to sample siamese batches: "
-                      f"{siamese_samples_end - siamese_samples_start} seconds")
+                # print(f"Time to sample siamese batches: "
+                #       f"{siamese_samples_end - siamese_samples_start} seconds")
             ############
 
         global_vars = {
@@ -429,7 +429,7 @@ class XADQN(DQN):
 
         if cur_ts > self.config.num_steps_sampled_before_learning_starts:
             train_start = time.time()
-            print(f"Time to start training: {train_start - start} seconds")
+            # print(f"Time to start training: {train_start - start} seconds")
             for _ in range(sample_and_train_weight):
                 # Sample training batch (MultiAgentBatch) from replay buffer.
                 train_batch = concat_samples(self.local_replay_buffer.replay(
@@ -470,6 +470,9 @@ class XADQN(DQN):
 
                 ############
                 if self.use_siamese:
+                    if 'siamese' not in train_results:
+                        train_results['siamese'] = {}
+
                     # update siamese model
                     for _ in range(self.siamese_config['update_steps']):
                         anchor = self.triplet_buffer['anchor']
@@ -477,9 +480,6 @@ class XADQN(DQN):
                         negative = self.triplet_buffer['negative']
 
                         if anchor and positive and negative:
-                            if 'siamese' not in train_results:
-                                train_results['siamese'] = {}
-
                             self.siamese_model.train()
                             self.optimizer.zero_grad()
 
@@ -516,8 +516,8 @@ class XADQN(DQN):
                 ############
 
             train_end = time.time()
-            print(f"Time elapsed training at timestep {cur_ts}:"
-                  f" {train_end - train_start} seconds")
+            # print(f"Time elapsed training at timestep {cur_ts}:"
+            #       f" {train_end - train_start} seconds")
             if self.n_step_annealing_scheduler:
                 self.update_n_steps()
 
