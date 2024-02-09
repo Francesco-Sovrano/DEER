@@ -368,9 +368,10 @@ def run_training(args):
     for k, v in get_model_catalog_dict(alg_name, framework).items():
         ModelCatalog.register_custom_model(k, v)
 
+    local_mode = False  # Set to True to debug locally
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
-             include_dashboard=False)
+             include_dashboard=False, local_mode=local_mode)
     tuner = tune.Tuner(
         algo_class,
         param_space=algo_config.to_dict(),

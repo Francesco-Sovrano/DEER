@@ -2,7 +2,7 @@
 from deer.experience_buffers.buffer.pseudo_prioritized_buffer import *
 
 import numpy as np
-from sklearn.cluster import MeanShift
+from sklearn.cluster import BisectingKMeans
 import torch
 from ray.rllib.policy.sample_batch import MultiAgentBatch
 
@@ -35,13 +35,14 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
                             if isinstance(element, MultiAgentBatch)
                             else element
                             for element in buffer_item_list]
-        buffer_embedding_iter = self.embedding_fn(buffer_item_list)
-        # Create a MeanShift object
-        self.clustering = MeanShift(bandwidth=None)  # If bandwidth is None, it will be estimated
+        subsample = list(np.random.choice(
+            buffer_item_list, size=2048, replace=False))
+        buffer_embedding_iter = self.embedding_fn(subsample)
+        self.clustering = BisectingKMeans(n_clusters=100)
         buffer_label_list = self.clustering.fit_predict(
             buffer_embedding_iter.detach().numpy()).tolist()
         self.clean()
-        for i, l in zip(buffer_item_list, buffer_label_list):
+        for i, l in zip(subsample, buffer_label_list):
             get_batch_infos(i)['batch_index'] = {}
             self.add(i, type_id=l)
 

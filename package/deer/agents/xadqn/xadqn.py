@@ -320,7 +320,6 @@ class XADQN(DQN):
 
         # We alternate between storing new samples and sampling and training
         store_weight, sample_and_train_weight = calculate_rr_weights(self.config)
-        siamese_losses = []
         for _ in range(store_weight):
             # Sample (MultiAgentBatch) from workers.
             with self._timers[SAMPLE_TIMER]:
@@ -341,6 +340,9 @@ class XADQN(DQN):
                 with_episode_type=self.config.clustering_options[
                     'cluster_with_episode_type'],
                 training_step=self.local_replay_buffer.get_train_steps())
+
+            total_buffer_additions = sum(
+                map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
             ############
             if self.use_siamese:
@@ -377,9 +379,6 @@ class XADQN(DQN):
                 print(f"Time to sample siamese batches: "
                       f"{siamese_samples_end - siamese_samples_start} seconds")
             ############
-
-            total_buffer_additions = sum(
-                map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
         global_vars = {
             "timestep": self._counters[NUM_ENV_STEPS_SAMPLED],

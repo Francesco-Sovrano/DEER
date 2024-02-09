@@ -3,9 +3,9 @@ default: &default
   model:
     custom_model: adaptive_multihead_network
   siamese:
-    use_siamese: false
+    use_siamese: true
     buffer_size: 512
-    update_frequency: 30000
+    update_frequency: 5000
     update_steps: 10
     embedding_size: 512
     loss_margin: 100000000
