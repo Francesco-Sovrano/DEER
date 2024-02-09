@@ -62,8 +62,7 @@ class PolicySignatureListCollector(SimpleListCollector):
 
 
 def init_xa_config(self):
-    self.num_steps_sampled_before_learning_starts = 2 ** 14
-    self.min_train_timesteps_per_iteration = 1
+    self.n_step = 1
     self.siamese = {
         "use_siamese": True,
         "buffer_size": 10,
@@ -72,10 +71,8 @@ def init_xa_config(self):
         "embedding_size": 64,
     }
     self.n_step_annealing_scheduler = {
-        'fn': None,
-        # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'.
-        'args': {}
-        # the arguments to pass to the function; for more details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+        'fn': None,  # function name in string format; one of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'.
+        'args': {}  # the arguments to pass to the function; for more details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
     }
     self.n_step_random_sampling = False  # a Boolean
     self.buffer_options = {
@@ -193,6 +190,7 @@ class XADQN(DQN):
         self.loss_fn = None
         self.use_siamese = None
         self.s_buffer_size = None
+        self.n_step = 1
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -220,10 +218,10 @@ class XADQN(DQN):
 
     @override(DQN)
     def setup(self, config):
-        if config.n_step_annealing_scheduler['args'].get('initial_p', None):
-            assert config.n_step_annealing_scheduler['args']['initial_p'] <= config.rollout_fragment_length, f"n_step_annealing_scheduler['args']['initial_p'] ({config.n_step_annealing_scheduler['args']['initial_p']}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})"
-        else:
-            assert config.n_step <= config.rollout_fragment_length, f'n_step ({config.n_step}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})'
+        # if config.n_step_annealing_scheduler['args'].get('initial_p', None):
+        #     assert config.n_step_annealing_scheduler['args']['initial_p'] <= config.rollout_fragment_length, f"n_step_annealing_scheduler['args']['initial_p'] ({config.n_step_annealing_scheduler['args']['initial_p']}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})"
+        # else:
+        #     assert config.n_step <= config.rollout_fragment_length, f'n_step ({config.n_step}) must be lower than or equal to the rollout_fragment_length ({config.rollout_fragment_length})'
 
         random.seed(config.seed)
         np.random.seed(config.seed)
@@ -452,7 +450,7 @@ class XADQN(DQN):
                     train_results = train_one_step(self, train_batch)
                 else:
                     train_results = multi_gpu_train_one_step(self, train_batch)
-                self._counters['training_steps'] += 1
+                # self._counters['training_steps'] += 1
 
                 # Update replay buffer priorities.
                 update_priorities(train_batch, train_results)

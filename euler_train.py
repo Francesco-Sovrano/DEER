@@ -6,13 +6,14 @@ import argparse
 import argunparse
 import subprocess
 import random
+import numpy as np
 from datetime import datetime
 
-import numpy as np
-
-from deer.utils.workflow import train
+import ray
+from ray.rllib.models import ModelCatalog
+from ray import tune
+from ray.rllib.algorithms.sac.sac import SAC, SACConfig
 from deer.models import get_model_catalog_dict
-
 from deer.agents.xadqn import XADQN, XADQNConfig
 from deer.agents.xasac import XASAC, XASACConfig
 from environment import CustomEnvironmentCallbacks
@@ -21,7 +22,7 @@ from environment import CustomEnvironmentCallbacks
 def run_mujoco_siamese_experiments(args):
     # Run Siamese experiments
     envs = ['HalfCheetah-v4', 'Hopper-v4', 'Walker2d-v4', 'Ant-v4',
-            'Humanoid-v4', 'Swimmer-v4']
+            'Humanoid-v4']
     methods = ["siamese"]
     er_buffer_size = [1024, 2048, 4096, 8192]
     siamese_embedding_size = [512, 2048]
@@ -254,57 +255,6 @@ def run_griddrive_siamese_experiments(args):
             submit_jobs(exp_args)
 
 
-def run_training(args):
-    os.environ["TUNE_RESULT_DIR"] = str(args.results_dir)
-    import ray
-    from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
-    from ray.rllib.models import ModelCatalog
-
-    env = args.env
-    with open(args.ml_config_path) as file:
-        configs = yaml.load(file, Loader=yaml.FullLoader)
-        configs = configs.get(args.env, None)
-
-    configs["callbacks"] = CustomEnvironmentCallbacks
-    configs["multiagent"] = {
-        "policies": {DEFAULT_POLICY_ID},
-        "policy_mapping_fn": lambda agent_id: DEFAULT_POLICY_ID,
-        "policies_to_train": None,
-        "observation_fn": None,
-        "replay_mode": "independent",
-    }
-    print('Config:', configs)
-
-    num_gpus = args.gpus
-    if args.no_gpu:
-        num_gpus = 0
-
-    alg_name = ''
-    if args.algo == 'xadqn':
-        algo_class = XADQN
-        algo_config = XADQNConfig
-        alg_name = 'dqn'
-    elif args.algo == 'xasac':
-        algo_class = XASAC
-        algo_config = XASACConfig
-        alg_name = 'sac'
-    else:
-        raise ValueError(f"Unknown algorithm {args.algo}")
-
-    # Register models
-    for k, v in get_model_catalog_dict(
-            alg_name, configs.get("framework", 'torch')).items():
-        ModelCatalog.register_custom_model(k, v)
-
-    ray.shutdown()
-    ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
-             include_dashboard=False)
-    train(algo_class, algo_config, configs, env,
-          test_every_n_step=np.inf,
-          stop_training_after_n_step=args.total_n_steps,
-          save_gif=False)
-
-
 def submit_jobs(args):
 
     # If the same seed should be used for all experiments
@@ -382,6 +332,52 @@ def submit_jobs(args):
         print(f"Command: {command}")
 
 
+def run_training(args):
+    os.environ["TUNE_RESULT_DIR"] = str(args.results_dir.absolute())
+
+    num_gpus = args.gpus
+    if args.no_gpu:
+        num_gpus = 0
+
+    if args.algo == 'xadqn':
+        algo_class = XADQN
+        algo_config = XADQNConfig()
+        alg_name = 'dqn'
+    elif args.algo == 'xasac':
+        algo_class = XASAC
+        algo_config = XASACConfig()
+        alg_name = 'sac'
+    elif args.algo == 'sac':
+        algo_class = SAC
+        algo_config = SACConfig()
+        alg_name = 'sac'
+    else:
+        raise ValueError(f"Unknown algorithm {args.algo}")
+
+    framework = 'torch'
+    if args.ml_config_path is not None:
+        with open(args.ml_config_path) as file:
+            configs = yaml.load(file, Loader=yaml.FullLoader)
+            configs = configs.get(args.env, None)
+            framework = configs.get("framework", 'torch')
+            algo_config = algo_config.from_dict(configs)
+    algo_config = algo_config.environment(args.env)
+    print('Config:', algo_config.to_dict())
+
+    # Register models
+    for k, v in get_model_catalog_dict(alg_name, framework).items():
+        ModelCatalog.register_custom_model(k, v)
+
+    ray.shutdown()
+    ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
+             include_dashboard=False)
+    tuner = tune.Tuner(
+        algo_class,
+        param_space=algo_config.to_dict(),
+    )
+    tuner.fit()
+
+
 def run_experiments(args):
     for exp in args.experiments:
         if exp == 'all' or exp == "xadqn_siamese":
@@ -393,7 +389,7 @@ def run_experiments(args):
 
 
 def main():
-    euler_res = "/cluster/project/jbuhmann/workspace/deer/results/"
+    euler_res = "/cluster/project/jbuhmann/workspace/deer/results/tests"
     parser = argparse.ArgumentParser(description="Deer experiments")
     parser.add_argument("--results_dir", type=Path, default=Path(euler_res),
                         help="Path in which results of training are/will be "
@@ -401,8 +397,7 @@ def main():
     parser.add_argument("-n", "--run_id", type=Path,
                         help="directory name for results to be saved")
     parser.add_argument("--ml_config_path",
-                        type=Path,
-                        default=Path("configs/xadqn_siamese_config.yaml"),
+                        type=Path, default=None,
                         help="Path to the ml-agents or sb3 config. "
                              "Ex: 'configs/xadqn_siamese_config.yaml'")
 

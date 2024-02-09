@@ -1,32 +1,18 @@
 default: &default
-  disable_env_checking: True
-#  allow_unknown_configs: True
   framework: torch
   model:
     custom_model: adaptive_multihead_network
-  no_done_at_end: false
-  gamma: !!float 0.999
-  seed: 42
-  horizon: 32
-  min_train_timesteps_per_iteration: 1
-  batch_mode: truncate_episodes
-  train_batch_size: 256
-  rollout_fragment_length: 64
-  _disable_preprocessor_api: true
-  num_steps_sampled_before_learning_starts: 16384
   siamese:
-    use_siamese: true
+    use_siamese: false
     buffer_size: 1000
     update_frequency: 30000
     update_steps: 10
     embedding_size: 512
     loss_margin: 100000000
-  tau: !!float 1e-4
   buffer_options:
     prioritized_replay: true
     centralised_buffer: true
-#    global_size: 16384
-    global_size: 4096
+    global_size: 1000000
     priority_id: td_errors
     priority_lower_limit: 0
     priority_aggregation_fn: np.mean
