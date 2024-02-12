@@ -35,14 +35,14 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
                             if isinstance(element, MultiAgentBatch)
                             else element
                             for element in buffer_item_list]
-        subsample = list(np.random.choice(
-            buffer_item_list, size=2048, replace=False))
-        buffer_embedding_iter = self.embedding_fn(subsample)
+        # buffer_item_list = list(np.random.choice(
+        #     buffer_item_list, size=2048, replace=False))
+        buffer_embedding_iter = self.embedding_fn(buffer_item_list)
         self.clustering = BisectingKMeans(n_clusters=100)
         buffer_label_list = self.clustering.fit_predict(
             buffer_embedding_iter.detach().numpy()).tolist()
         self.clean()
-        for i, l in zip(subsample, buffer_label_list):
+        for i, l in zip(buffer_label_list, buffer_label_list):
             get_batch_infos(i)['batch_index'] = {}
             self.add(i, type_id=l)
 

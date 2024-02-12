@@ -12,6 +12,7 @@ from datetime import datetime
 import ray
 from ray.rllib.models import ModelCatalog
 from ray import tune
+from ray.air.config import RunConfig
 from ray.rllib.algorithms.sac.sac import SAC, SACConfig
 from deer.models import get_model_catalog_dict
 from deer.agents.xadqn import XADQN, XADQNConfig
@@ -360,6 +361,8 @@ def run_training(args):
             configs = yaml.load(file, Loader=yaml.FullLoader)
             configs = configs.get(args.env, None)
             framework = configs.get("framework", 'torch')
+
+            configs["callbacks"] = CustomEnvironmentCallbacks
             algo_config = algo_config.from_dict(configs)
     algo_config = algo_config.environment(args.env)
     print('Config:', algo_config.to_dict())
@@ -368,6 +371,9 @@ def run_training(args):
     for k, v in get_model_catalog_dict(alg_name, framework).items():
         ModelCatalog.register_custom_model(k, v)
 
+
+    run_config = RunConfig(name=args.run_id)
+
     local_mode = False  # Set to True to debug locally
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
@@ -375,6 +381,7 @@ def run_training(args):
     tuner = tune.Tuner(
         algo_class,
         param_space=algo_config.to_dict(),
+        run_config=run_config,
     )
     tuner.fit()
 
