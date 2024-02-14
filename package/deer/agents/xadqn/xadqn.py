@@ -185,6 +185,7 @@ class XADQN(DQN):
         self.siamese_model = None
         self.positive_buffer = None
         self.triplet_buffer = None
+        self.explanation_batch_dict = None
         self.siamese_config = None
         self.optimizer = None
         self.loss_fn = None
@@ -246,6 +247,7 @@ class XADQN(DQN):
         self.use_siamese = self.siamese_config.get('use_siamese', False)
         self.s_buffer_size = self.siamese_config.get('buffer_size', 10000)
         self.positive_buffer = Buffer(global_size=self.s_buffer_size, seed=42)
+        self.explanation_batch_dict = dict()
         self.triplet_buffer = {
             'anchor': deque(maxlen=self.s_buffer_size),
             'positive': deque(maxlen=self.s_buffer_size),
@@ -347,22 +349,24 @@ class XADQN(DQN):
             ############
             if self.use_siamese:
                 siamese_samples_start = time.time()
-                explanation_batch_dict = defaultdict(list)
+                # explanation_batch_dict = defaultdict(list)
                 for sub_batch in sub_batch_iter:
                     pol_sub_batch = sub_batch['default_policy']
                     explanatory_label = get_batch_type(pol_sub_batch)
-                    explanation_batch_dict[explanatory_label].append(
+                    self.explanation_batch_dict.setdefault(
+                        explanatory_label, deque(maxlen=self.s_buffer_size))
+                    self.explanation_batch_dict[explanatory_label].append(
                         pol_sub_batch)
                     self.positive_buffer.add(pol_sub_batch, explanatory_label)
 
                 # TODO: check if there is a way to avoid this check
-                if len(explanation_batch_dict.keys()) < 2:
+                if len(self.explanation_batch_dict.keys()) < 2:
                     print(f"Warning: not enough different explanatory labels "
                           f"at time step {self._counters['training_steps']}")
                     continue
 
                 anchor_class, negative_class = random.sample(list(
-                    explanation_batch_dict.keys()), 2)
+                    self.explanation_batch_dict.keys()), 2)
                 # TODO: check if there is a way to avoid this check too
                 if len(self.positive_buffer.get_batches(anchor_class)) < 1:
                     print(f"Warning: not enough positive samples for "
@@ -370,12 +374,13 @@ class XADQN(DQN):
                           f"{self._counters['training_steps']}")
                     continue
                 self.triplet_buffer['anchor'].append(random.choice(
-                    explanation_batch_dict[anchor_class]))
+                    self.explanation_batch_dict[anchor_class]))
                 self.triplet_buffer['positive'].append(random.choice(
                     self.positive_buffer.get_batches(anchor_class)))
                 self.triplet_buffer['negative'].append(random.choice(
-                    explanation_batch_dict[negative_class]))
+                    self.explanation_batch_dict[negative_class]))
                 siamese_samples_end = time.time()
+
                 # print(f"Time to sample siamese batches: "
                 #       f"{siamese_samples_end - siamese_samples_start} seconds")
             ############
@@ -449,7 +454,7 @@ class XADQN(DQN):
                     train_results = train_one_step(self, train_batch)
                 else:
                     train_results = multi_gpu_train_one_step(self, train_batch)
-                # self._counters['training_steps'] += 1
+                self._counters['training_steps'] += 1
 
                 # Update replay buffer priorities.
                 update_priorities(train_batch, train_results)

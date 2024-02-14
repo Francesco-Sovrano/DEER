@@ -1,16 +1,20 @@
 default: &default
   framework: torch
-#  rollout_fragment_length: 1
+#  rollout_fragment_length: 200
   model:
     custom_model: adaptive_multihead_network
   siamese:
-    use_siamese: false
+    use_siamese: true
     buffer_size: 512
     update_frequency: 5000
     update_steps: 3
     embedding_size: 512
-    loss_margin: 100000000
+    loss_margin: 10000000
+
   buffer_options:
+    siamese_num_clusters: 100
+    num_samples_to_recluster: 5000
+
     prioritized_replay: true
     centralised_buffer: true
     global_size: 1000000

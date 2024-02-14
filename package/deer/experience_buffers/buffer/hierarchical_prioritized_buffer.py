@@ -15,6 +15,8 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
         self.clustering = None
         self.cluster_priority_list = []
         self.embedding_fn = None
+        self.num_clusters = configs['siamese_num_clusters']
+        self.num_samples_to_recluster = configs['num_samples_to_recluster']
 
     def clean(self):  # O(1)
         super().clean()
@@ -29,20 +31,25 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
 
     def build_clusters(self, embedding_fn):
         self.embedding_fn = embedding_fn
+
+        cur_num_clusters = len(self.batches)
+        samples_per_cluster = self.num_samples_to_recluster // cur_num_clusters
+
         buffer_item_list = [element
-                            for batch in self.batches for element in batch]
+                            for batch in self.batches
+                            for element in batch[-samples_per_cluster:]]
         buffer_item_list = [element.policy_batches['default_policy']
                             if isinstance(element, MultiAgentBatch)
                             else element
                             for element in buffer_item_list]
-        # buffer_item_list = list(np.random.choice(
-        #     buffer_item_list, size=2048, replace=False))
+
         buffer_embedding_iter = self.embedding_fn(buffer_item_list)
-        self.clustering = BisectingKMeans(n_clusters=100)
+        self.clustering = BisectingKMeans(
+            n_clusters=self.num_clusters)
         buffer_label_list = self.clustering.fit_predict(
             buffer_embedding_iter.detach().numpy()).tolist()
         self.clean()
-        for i, l in zip(buffer_label_list, buffer_label_list):
+        for i, l in zip(buffer_item_list, buffer_label_list):
             get_batch_infos(i)['batch_index'] = {}
             self.add(i, type_id=l)
 

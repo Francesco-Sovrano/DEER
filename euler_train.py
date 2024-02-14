@@ -371,9 +371,7 @@ def run_training(args):
     for k, v in get_model_catalog_dict(alg_name, framework).items():
         ModelCatalog.register_custom_model(k, v)
 
-
     run_config = RunConfig(name=args.run_id)
-
     local_mode = False  # Set to True to debug locally
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
