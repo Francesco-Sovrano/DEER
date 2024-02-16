@@ -372,10 +372,9 @@ def run_training(args):
         ModelCatalog.register_custom_model(k, v)
 
     run_config = RunConfig(name=args.run_id)
-    local_mode = False  # Set to True to debug locally
     ray.shutdown()
     ray.init(ignore_reinit_error=True, num_cpus=args.cpus, num_gpus=num_gpus,
-             include_dashboard=False, local_mode=local_mode)
+             include_dashboard=False, local_mode=args.local_mode)
     tuner = tune.Tuner(
         algo_class,
         param_space=algo_config.to_dict(),
@@ -457,6 +456,10 @@ def main():
                         help='Do not request any gpus.')
     parser.add_argument('--gpus', default=1, required=False, type=int)
     parser.add_argument('--cpus', default=1, required=False, type=int)
+    parser.add_argument("--local_mode", default=False, required=False,
+                        action='store_true',
+                        help="Run the experiments in local mode. This is "
+                             "useful for debugging.")
     parser.add_argument("--batch_system",
                         type=str,
                         default='slurm',
