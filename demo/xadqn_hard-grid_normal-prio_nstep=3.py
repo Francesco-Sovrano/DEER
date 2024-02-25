@@ -50,7 +50,7 @@ default_options = {
 	# "batch_dropout_rate": 0.5, # Probability of dropping a state transition before adding it to the experience buffer. Set this to any value greater than zero to randomly drop state transitions
 	###########################
 	"batch_mode": "truncate_episodes", # For some clustering schemes (e.g. extrinsic_reward, moving_best_extrinsic_reward, etc..) it has to be equal to 'complete_episodes', otherwise it can also be 'truncate_episodes'.
-	"rollout_fragment_length": 2**6, # Divide episodes into fragments of this many steps each during rollouts. Default is 1.
+	"rollout_fragment_length": 1, # Divide episodes into fragments of this many steps each during rollouts. Default is 1.
 	"train_batch_size": 2**8, # Number of 'n_step' transitions per train-batch. Default is: 100 for TD3, 256 for SAC and DDPG, 32 for SAC, 500 for APPO.
 	###########################
 	"min_train_timesteps_per_iteration": 1,
@@ -79,6 +79,8 @@ algorithm_options = {
 xa_default_options = {
 	##############################
 	"buffer_options": {
+		"siamese_num_clusters": 50,
+		"num_samples_to_recluster": 2000,
 		"prioritized_replay": True, # Whether to replay batches with the highest priority/importance/relevance for the agent.
 		"centralised_buffer": True, # for MARL
 		'global_size': EXPERIENCE_BUFFER_SIZE, # Maximum number of batches stored in the experience buffer. Every batch has size 'rollout_fragment_length' (default is 50).

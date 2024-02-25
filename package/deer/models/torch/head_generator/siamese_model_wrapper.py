@@ -98,10 +98,10 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             return self.state_dict()
         return list(self.parameters())
 
-    def forward(self, x):
+    def _forward(self, x):
         assert x, 'forwarding an empty input'
         output_list = []
-        if isinstance(x, SampleBatch):
+        if isinstance(x, (SampleBatch,dict)):
             inputs_dicts = [self.get_inputs_dict(x)]
         elif isinstance(x, Iterable):
             inputs_dicts = [self.get_inputs_dict(x_i) for x_i in x]
@@ -146,7 +146,10 @@ class SiameseAdaptiveModel(nn.ModuleDict):
             output = torch.cat(out_list, -1) if len(out_list) > 1 else out_list[0]
             output_list.append(output)
         # output = torch.flatten(output, start_dim=1)
-        stacked_output = torch.stack(output_list)
+        return torch.stack(output_list)
+
+    def forward(self, x):
+        stacked_output = self._forward(x)
         return self.last_fc(stacked_output)
 
     def get_num_outputs(self):
@@ -163,7 +166,7 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 return torch.rand(1, *_obs_space.shape)
 
             random_obs = get_random_input_recursively(self.obs_space)
-            self._num_outputs = self.forward(random_obs).shape[-1]
+            self._num_outputs = self._forward(random_obs).shape[-1]
         return self._num_outputs
 
     @staticmethod

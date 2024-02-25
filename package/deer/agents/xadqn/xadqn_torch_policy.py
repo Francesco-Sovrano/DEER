@@ -36,7 +36,7 @@ def sample_from_beta_with_mean(target_mean, alpha=1):
 
 def special_adjust_nstep(n_step, gamma, batch):
 	assert not any(
-		batch[SampleBatch.DONES][:-1]
+		batch[SampleBatch.TERMINATEDS][:-1]
 	), "Unexpected done in middle of trajectory!"
 
 	len_ = len(batch)
@@ -49,10 +49,10 @@ def special_adjust_nstep(n_step, gamma, batch):
 		],
 		axis=0,
 	)
-	batch[SampleBatch.DONES] = np.concatenate(
+	batch[SampleBatch.TERMINATEDS] = np.concatenate(
 		[
-			batch[SampleBatch.DONES][n_step - 1 :],
-			np.tile(batch[SampleBatch.DONES][-1], min(n_step - 1, len_)),
+			batch[SampleBatch.TERMINATEDS][n_step - 1 :],
+			np.tile(batch[SampleBatch.TERMINATEDS][-1], min(n_step - 1, len_)),
 		],
 		axis=0,
 	)
