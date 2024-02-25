@@ -65,7 +65,8 @@ def init_xa_config(self):
     self.n_step = 1
     self.siamese = {
         "use_siamese": True,
-        "buffer_size": 10,
+        "training_batch_size": 52,
+        "buffer_size": 520,
         "update_frequency": 10000,
         "update_steps": 4,
         "embedding_size": 64,
@@ -190,7 +191,7 @@ class XADQN(DQN):
         self.optimizer = None
         self.loss_fn = None
         self.use_siamese = None
-        self.s_buffer_size = None
+        # self.siamese_training_batch = None
         self.n_step = 1
         super().__init__(*args, **kwargs)
 
@@ -245,13 +246,14 @@ class XADQN(DQN):
         self._counters['last_siamese_update'] = 0
         self.siamese_config = config.get("siamese", {})
         self.use_siamese = self.siamese_config.get('use_siamese', False)
-        self.s_buffer_size = self.siamese_config.get('buffer_size', 10000)
-        self.positive_buffer = Buffer(global_size=self.s_buffer_size, seed=42)
-        self.explanation_batch_dict = dict()
+        siamese_training_batch = self.siamese_config.get('training_batch_size', 52)
+        siamese_buffer_size = self.siamese_config.get('buffer_size', siamese_training_batch*100)
+        self.positive_buffer = Buffer(global_size=siamese_training_batch, seed=42)
+        self.explanation_batch_dict = defaultdict(lambda: deque(maxlen=siamese_buffer_size))
         self.triplet_buffer = {
-            'anchor': deque(maxlen=self.s_buffer_size),
-            'positive': deque(maxlen=self.s_buffer_size),
-            'negative': deque(maxlen=self.s_buffer_size),
+            'anchor': deque(maxlen=siamese_training_batch),
+            'positive': deque(maxlen=siamese_training_batch),
+            'negative': deque(maxlen=siamese_training_batch),
         }
         self.local_replay_buffer, self.clustering_scheme = (
             get_clustered_replay_buffer(self.config, siamese=self.use_siamese))
@@ -262,18 +264,17 @@ class XADQN(DQN):
             tmp_env = env_creator(config["env_config"])
             embedding_size = self.siamese_config.get('embedding_size', 64)
             self.siamese_model = SiameseAdaptiveModel(gym.spaces.Dict({
-                f"obs": tmp_env.observation_space,
-                f"new_obs": tmp_env.observation_space,
-                f"actions": tmp_env.action_space,
-                f"rewards": gym.spaces.Box(
-                    low=float('-inf'), high=float('inf'),
-                    shape=(1,), dtype=np.float32), }),
+                    SampleBatch.CUR_OBS: tmp_env.observation_space,
+                    SampleBatch.NEXT_OBS: tmp_env.observation_space,
+                    SampleBatch.ACTIONS: tmp_env.action_space,
+                    SampleBatch.REWARDS: gym.spaces.Box(low=float('-inf'), high=float('inf'), shape=(1,), dtype=np.float32), 
+                    SampleBatch.TERMINATEDS: gym.spaces.Box(low=float('-inf'), high=float('inf'), shape=(1,), dtype=np.float32), 
+                    'td_errors': gym.spaces.Box(low=float('-inf'), high=float('inf'), shape=(1,), dtype=np.float32), 
+                }),
                 embedding_size=embedding_size,
                 env=config.env)
-            self.loss_fn = torch.nn.TripletMarginLoss(
-                self.siamese_config.get('loss_margin', 1.0), p=2)
-            self.optimizer = torch.optim.Adam(
-                self.siamese_model.parameters(), lr=1e-3, weight_decay=1e-10)
+            self.loss_fn = torch.nn.TripletMarginLoss(self.siamese_config.get('loss_margin', 1.0), p=2)
+            self.optimizer = torch.optim.SGD(self.siamese_model.parameters(), lr=1e-3, momentum=0.9)
             self.siamese_model.to(device)
 
         # def add_view_requirements(w):
@@ -291,15 +292,6 @@ class XADQN(DQN):
         #                 shift=0)
 
         # self.workers.foreach_worker(add_view_requirements)
-
-    def format_transition_for_siamese_input(self, x):
-        embedding_size = self.siamese_config.get('embedding_size', 64)
-        return {
-            f"s_t": x[CUR_OBS],
-            f"s_(t+1)": x[NEXT_OBS],
-            f"a_t": x[ACTIONS],
-            f"r_t": x[REWARDS],
-        }
 
     @override(DQN)
     def training_step(self):
@@ -325,26 +317,20 @@ class XADQN(DQN):
         for _ in range(store_weight):
             # Sample (MultiAgentBatch) from workers.
             with self._timers[SAMPLE_TIMER]:
-                new_sample_batch = synchronous_parallel_sample(
-                    worker_set=self.workers, concat=True
-                )
+                new_sample_batch = synchronous_parallel_sample(worker_set=self.workers, concat=True)
 
             # Update counters
-            self._counters[
-                NUM_AGENT_STEPS_SAMPLED] += new_sample_batch.agent_steps()
-            self._counters[
-                NUM_ENV_STEPS_SAMPLED] += new_sample_batch.env_steps()
+            self._counters[NUM_AGENT_STEPS_SAMPLED] += new_sample_batch.agent_steps()
+            self._counters[NUM_ENV_STEPS_SAMPLED] += new_sample_batch.env_steps()
 
             # Store new samples in replay buffer.
             sub_batch_iter = assign_types(
                 new_sample_batch, self.clustering_scheme,
                 self.sample_batch_size,
-                with_episode_type=self.config.clustering_options[
-                    'cluster_with_episode_type'],
+                with_episode_type=self.config.clustering_options['cluster_with_episode_type'],
                 training_step=self.local_replay_buffer.get_train_steps())
 
-            total_buffer_additions = sum(
-                map(self.local_replay_buffer.add_batch, sub_batch_iter))
+            total_buffer_additions = sum(map(self.local_replay_buffer.add_batch, sub_batch_iter))
 
             ############
             if self.use_siamese:
@@ -353,10 +339,7 @@ class XADQN(DQN):
                 for sub_batch in sub_batch_iter:
                     pol_sub_batch = sub_batch['default_policy']
                     explanatory_label = get_batch_type(pol_sub_batch)
-                    self.explanation_batch_dict.setdefault(
-                        explanatory_label, deque(maxlen=self.s_buffer_size))
-                    self.explanation_batch_dict[explanatory_label].append(
-                        pol_sub_batch)
+                    self.explanation_batch_dict[explanatory_label].append(pol_sub_batch)
                     self.positive_buffer.add(pol_sub_batch, explanatory_label)
 
                 # TODO: check if there is a way to avoid this check
@@ -373,12 +356,9 @@ class XADQN(DQN):
                           f"class {anchor_class} at time step "
                           f"{self._counters['training_steps']}")
                     continue
-                self.triplet_buffer['anchor'].append(random.choice(
-                    self.explanation_batch_dict[anchor_class]))
-                self.triplet_buffer['positive'].append(random.choice(
-                    self.positive_buffer.get_batches(anchor_class)))
-                self.triplet_buffer['negative'].append(random.choice(
-                    self.explanation_batch_dict[negative_class]))
+                self.triplet_buffer['anchor'].append(random.choice(self.explanation_batch_dict[anchor_class]))
+                self.triplet_buffer['positive'].append(random.choice(self.positive_buffer.get_batches(anchor_class)))
+                self.triplet_buffer['negative'].append(random.choice(self.explanation_batch_dict[negative_class]))
                 siamese_samples_end = time.time()
 
                 # print(f"Time to sample siamese batches: "
@@ -503,8 +483,7 @@ class XADQN(DQN):
                         self.siamese_model.eval()
                         start_cluster = time.time()
 
-                        self.local_replay_buffer.build_clusters(
-                            self.siamese_model)
+                        self.local_replay_buffer.build_clusters(self.siamese_model)
                         self._counters['last_siamese_update'] = cur_ts
 
                         end_cluster = time.time()

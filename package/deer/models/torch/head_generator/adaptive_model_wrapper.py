@@ -75,9 +75,7 @@ class AdaptiveModel(nn.Module):
         if other_inputs_list:
             self.sub_model_dict[''] = [[nn.Flatten()] for l in
                                        other_inputs_list]
-        if not self.sub_model_dict.get('cnn',
-                                       None) and not self.sub_model_dict.get(
-                'fc', None):
+        if not self.sub_model_dict.get('cnn',None) and not self.sub_model_dict.get('fc', None):
             assert other_inputs_list
             logger.warning('N.B.: Flattening all observations!')
 

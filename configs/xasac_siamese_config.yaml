@@ -5,7 +5,8 @@ default: &default
     custom_model: adaptive_multihead_network
   siamese:
     use_siamese: true
-    buffer_size: 100
+    training_batch_size: 52
+    buffer_size: 520
     update_frequency: 2000
     update_steps: 3
     embedding_size: 512

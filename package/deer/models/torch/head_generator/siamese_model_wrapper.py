@@ -19,17 +19,9 @@ class SiameseAdaptiveModel(nn.ModuleDict):
         super_dict = {k: {} for k in obs_space.spaces.keys()}
         for k, v in obs_space.spaces.items():
             if isinstance(v, gym.spaces.Dict):
-                super_dict[k][
-                    'fc_inputs_shape_dict'] = self.get_inputs_shape_dict(v,
-                                                                         'fc')
-                super_dict[k][
-                    'cnn_inputs_shape_dict'] = self.get_inputs_shape_dict(v,
-                                                                          'cnn')
-            super_dict[k]['other_inputs_list'] = get_input_recursively(v,
-                                                                       lambda
-                                                                           k: not k.startswith(
-                                                                           'fc') and not k.startswith(
-                                                                           'cnn'))
+                super_dict[k]['fc_inputs_shape_dict'] = self.get_inputs_shape_dict(v,'fc')
+                super_dict[k]['cnn_inputs_shape_dict'] = self.get_inputs_shape_dict(v,'cnn')
+            super_dict[k]['other_inputs_list'] = get_input_recursively(v,lambda k: not k.startswith('fc') and not k.startswith('cnn'))
 
         for k, v in super_dict.items():
             # self.sub_model_dict[k] = {}
@@ -61,31 +53,32 @@ class SiameseAdaptiveModel(nn.ModuleDict):
                 self[k] = nn.ModuleList([nn.Flatten()
                                          for _ in other_inputs_list])
 
-        # TODO: back to a hacky solution, lazy is not supported on cluster
-        if env == "GridDrive-Hard":
-            in_dim = 586
-            # in_dim = 1098
-        elif env == "GridDrive-Medium":
-            in_dim = 554
-            # in_dim = 1066
-        elif env == "GridDrive-Easy":
-            # in_dim = 530
-            in_dim = 530
-        elif env == "Ant-v4":
-            in_dim = 63
-        elif env == "HalfCheetah-v4":
-            in_dim = 41
-        elif env == "Humanoid-v4":
-            in_dim = 770
-        elif env == "Hopper-v4":
-            in_dim = 26
-        elif env == "Walker2d-v4":
-            in_dim = 41
-        elif env == "Swimmer-v4":
-            in_dim = 41
-        else:
-            raise NotImplementedError(f"env {env} not supported for "
-                                      f"SiameseAdaptiveModel")
+        # # TODO: back to a hacky solution, lazy is not supported on cluster
+        # if env == "GridDrive-Hard":
+        #     in_dim = 586
+        #     # in_dim = 1098
+        # elif env == "GridDrive-Medium":
+        #     in_dim = 554
+        #     # in_dim = 1066
+        # elif env == "GridDrive-Easy":
+        #     # in_dim = 530
+        #     in_dim = 530
+        # elif env == "Ant-v4":
+        #     in_dim = 63
+        # elif env == "HalfCheetah-v4":
+        #     in_dim = 41
+        # elif env == "Humanoid-v4":
+        #     in_dim = 770
+        # elif env == "Hopper-v4":
+        #     in_dim = 26
+        # elif env == "Walker2d-v4":
+        #     in_dim = 41
+        # elif env == "Swimmer-v4":
+        #     in_dim = 41
+        # else:
+        #     raise NotImplementedError(f"env {env} not supported for "
+        #                               f"SiameseAdaptiveModel")
+        in_dim = self.get_num_outputs()
 
         self.last_fc = nn.Sequential(
             nn.Linear(in_features=in_dim, out_features=256),

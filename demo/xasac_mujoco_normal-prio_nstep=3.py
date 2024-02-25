@@ -140,7 +140,8 @@ xa_default_options = {
 siamese_options = {
     "siamese_config": {
         "use_siamese": True,
-        "buffer_size": 1000,
+        "training_batch_size": 52,
+        "buffer_size": 520,
         "update_frequency": 10000,
         "embedding_size": 16,
     },

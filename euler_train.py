@@ -77,7 +77,8 @@ def run_mujoco_siamese_experiments(args):
                             if method == "siamese":
                                 configs[env]['siamese'] = {
                                     'use_siamese': True,
-                                    'buffer_size': 512,
+                                    'training_batch_size': 52,
+                                    'buffer_size': 520,
                                     'embedding_size': embedding_size,
                                     'update_frequency': update_freq,
                                     'update_steps': update_steps,
@@ -146,7 +147,7 @@ def run_griddrive_siamese_experiments(args):
     # Run Siamese experiments
     envs = ['GridDrive-Easy', 'GridDrive-Medium', 'GridDrive-Hard']
     methods = ["siamese"]
-    siamese_buffer_size = [100, 500]
+    siamese_buffer_size = [26, 52]
     siamese_embedding_size = [512, 2048]
     siamese_update_frequency = [1000, 30000]
     siamese_loss_margin = [2**0, 2**20]
@@ -197,7 +198,8 @@ def run_griddrive_siamese_experiments(args):
                             if method == "siamese":
                                 configs[env]['siamese'] = {
                                     'use_siamese': True,
-                                    'buffer_size': size,
+                                    'training_batch_size': size,
+                                    'buffer_size': size*10,
                                     'embedding_size': embedding_size,
                                     'update_frequency': update_freq,
                                     'loss_margin': loss_margin
