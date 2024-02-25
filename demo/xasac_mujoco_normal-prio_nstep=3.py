@@ -66,17 +66,17 @@ algorithm_options = {
 	# "num_atoms": 21,
 	# "v_max": 2**5,
 	# "v_min": -1,
-	# "n_step": 10,
-	"n_step_random_sampling": True, # a Boolean
-	"n_step_annealing_scheduler": {
-		'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
-		'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
-			'schedule_timesteps': TRAINING_STEPS//2,
-			'final_p': 1, # final n-step
-			'framework': None,
-			'initial_p': 10 # initial n-step
-		}
-	},
+	"n_step": 1,
+	# "n_step_random_sampling": True, # a Boolean
+	# "n_step_annealing_scheduler": {
+	# 	'fn': 'LinearSchedule', # One of these: 'ConstantSchedule', 'PiecewiseSchedule', 'ExponentialSchedule', 'PolynomialSchedule'. 
+	# 	'args': { # For details about args see: https://docs.ray.io/en/latest/rllib/package_ref/utils.html?highlight=LinearSchedule#built-in-scheduler-components
+	# 		'schedule_timesteps': TRAINING_STEPS//2,
+	# 		'final_p': 1, # final n-step
+	# 		'framework': None,
+	# 		'initial_p': 10 # initial n-step
+	# 	}
+	# },
 }
 xa_default_options = {
 	##############################
