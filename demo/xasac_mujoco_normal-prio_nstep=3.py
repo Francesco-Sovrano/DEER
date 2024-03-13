@@ -107,9 +107,9 @@ xa_default_options = {
 		'max_age_window': None, # Consider only batches with a relative age within this age window, the younger is a batch the higher will be its importance. Set to None for no age weighting. # Idea from: Fedus, William, et al. "Revisiting fundamentals of experience replay." International Conference on Machine Learning. PMLR, 2020.
 	},
 	"clustering_options": {
-		'clustering_scheme': None,
+		# 'clustering_scheme': None,
 		'clustering_scheme': [
-			'Why',
+			# 'Why',
 			# 'Who',
 			'How_Well',
 			# 'How_Fair',
@@ -120,17 +120,17 @@ xa_default_options = {
 			# 'UWhich_CoopStrategy',
 		],
 		"clustering_scheme_options": {
-			"n_clusters": {
-				"who": 4,
-				# "why": 8,
-				# "what": 8,
-			},
-			"default_n_clusters": 8,
-			"frequency_independent_clustering": False, # Setting this to True can be memory expensive, especially for WHO explanations
-			"agent_action_sliding_window": 2**3,
-			"episode_window_size": 2**6, 
-			"batch_window_size": 2**8, 
-			"training_step_window_size": 2**2,
+			# "n_clusters": {
+			# 	"who": 4,
+			# 	# "why": 8,
+			# 	# "what": 8,
+			# },
+			# "default_n_clusters": 8,
+			# "frequency_independent_clustering": False, # Setting this to True can be memory expensive, especially for WHO explanations
+			# "agent_action_sliding_window": 2**3,
+			# "episode_window_size": 2**6, 
+			"batch_window_size": HORIZON*2**8, 
+			# "training_step_window_size": 2**2,
 		},
 		"cluster_selection_policy": "min", # Which policy to follow when clustering_scheme is not "none" and multiple explanatory labels are associated to a batch. One of the following: 'random_uniform_after_filling', 'random_uniform', 'random_max', 'max', 'min', 'none'
 		"cluster_with_episode_type": False, # Useful with sparse-reward environments. Whether to cluster experience using information at episode-level.
@@ -141,7 +141,7 @@ xa_default_options = {
 }
 siamese_options = {
 	"siamese_config": {
-		"use_siamese": True,
+		"use_siamese": False,
 		"training_batch_size": 52,
 		"buffer_size": 520,
 		"update_frequency": 10000,

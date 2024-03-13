@@ -4,7 +4,7 @@ import warnings
 from deer.experience_buffers.buffer.pseudo_prioritized_buffer import *
 
 import numpy as np
-from sklearn.cluster import BisectingKMeans
+from sklearn.cluster import MeanShift #BisectingKMeans
 import torch
 from ray.rllib.policy.sample_batch import MultiAgentBatch
 
@@ -19,6 +19,7 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
         self.embedding_fn = None
         self.num_clusters = configs['siamese_num_clusters']
         self.num_samples_to_recluster = configs['num_samples_to_recluster']
+        self.n_threads = configs.get('n_threads', None)
 
     def clean(self):  # O(1)
         super().clean()
@@ -46,8 +47,7 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
                             for element in buffer_item_list]
 
         buffer_embedding_iter = self.embedding_fn(buffer_item_list)
-        self.clustering = BisectingKMeans(
-            n_clusters=self.num_clusters)
+        self.clustering = MeanShift(bandwidth=None, n_jobs=self.n_threads)
         try:
             buffer_label_list = self.clustering.fit_predict(
                 buffer_embedding_iter.detach().numpy()).tolist()
