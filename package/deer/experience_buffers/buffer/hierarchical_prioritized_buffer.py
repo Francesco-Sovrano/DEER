@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import warnings
+
 from deer.experience_buffers.buffer.pseudo_prioritized_buffer import *
 
 import numpy as np
@@ -46,8 +48,12 @@ class HierarchicalPrioritizedBuffer(PseudoPrioritizedBuffer):
         buffer_embedding_iter = self.embedding_fn(buffer_item_list)
         self.clustering = BisectingKMeans(
             n_clusters=self.num_clusters)
-        buffer_label_list = self.clustering.fit_predict(
-            buffer_embedding_iter.detach().numpy()).tolist()
+        try:
+            buffer_label_list = self.clustering.fit_predict(
+                buffer_embedding_iter.detach().numpy()).tolist()
+        except ValueError:
+            warnings.warn('Clustering failed, probably due to a small number of samples')
+            return
         self.clean()
         for i, l in zip(buffer_item_list, buffer_label_list):
             get_batch_infos(i)['batch_index'] = {}

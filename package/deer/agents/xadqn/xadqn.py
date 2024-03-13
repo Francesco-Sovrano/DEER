@@ -5,6 +5,7 @@ XADQN - eXplanation-Aware Deep Q-Networks (DQN, Rainbow, Parametric DQN)
 Detailed documentation:
 https://docs.ray.io/en/master/rllib-algorithms.html#deep-q-networks-dqn-rainbow-parametric-dqn
 """  # noqa: E501
+import torch.multiprocessing as mp
 from more_itertools import unique_everseen
 from ray.rllib.utils.annotations import override
 from ray.rllib.execution.rollout_ops import synchronous_parallel_sample
@@ -177,6 +178,23 @@ class XADQNConfig(DQNConfig):
             self.sample_collector = PolicySignatureListCollector
 
 
+def train_siamese(siamese_model, optimizer,
+                  loss_fn, anchor, positive,
+                  negative, train_results):
+    siamese_model.train()
+    optimizer.zero_grad()
+
+    out_a = siamese_model(anchor)
+    out_p = siamese_model(positive)
+    out_n = siamese_model(negative)
+
+    loss = loss_fn(out_a, out_p, out_n)
+    loss.backward()
+    optimizer.step()
+    train_results['siamese']['siamese_loss'] = loss.item()
+    return train_results
+
+
 class XADQN(DQN):
     def __init__(self, *args, **kwargs):
         self._allow_unknown_subkeys += ["clustering_options"]
@@ -192,6 +210,9 @@ class XADQN(DQN):
         self.loss_fn = None
         self.use_siamese = None
         # self.siamese_training_batch = None
+        self.processes = []
+        self.s_buffer_size = None
+        self.shared_results = None
         self.n_step = 1
         super().__init__(*args, **kwargs)
 
@@ -276,6 +297,10 @@ class XADQN(DQN):
             self.loss_fn = torch.nn.TripletMarginLoss(self.siamese_config.get('loss_margin', 1.0), p=2)
             self.optimizer = torch.optim.SGD(self.siamese_model.parameters(), lr=1e-3, momentum=0.9)
             self.siamese_model.to(device)
+            mp.set_start_method('spawn', force=True)
+            self.siamese_model.share_memory()
+            self.shared_results = mp.Manager().dict()
+            self.processes = []
 
         # def add_view_requirements(w):
         #     for policy in w.policy_map.values():
@@ -455,31 +480,42 @@ class XADQN(DQN):
 
                 ############
                 if self.use_siamese:
-                    if 'siamese' not in train_results:
-                        train_results['siamese'] = {}
-
-                    # update siamese model
-                    for _ in range(self.siamese_config['update_steps']):
-                        anchor = self.triplet_buffer['anchor']
-                        positive = self.triplet_buffer['positive']
-                        negative = self.triplet_buffer['negative']
-
-                        if anchor and positive and negative:
-                            self.siamese_model.train()
-                            self.optimizer.zero_grad()
-
-                            out_a = self.siamese_model(anchor)
-                            out_p = self.siamese_model(positive)
-                            out_n = self.siamese_model(negative)
-
-                            loss = self.loss_fn(out_a, out_p, out_n)
-                            loss.backward()
-                            self.optimizer.step()
-                            train_results['siamese']['siamese_loss'] = loss.item()
-
-                    # make clusters
                     lsu = self._counters['last_siamese_update']
                     if cur_ts - lsu >= self.siamese_config["update_frequency"]:
+                        if 'siamese' not in train_results:
+                            train_results['siamese'] = {}
+                            self.shared_results['siamese'] = {}
+
+                        # if len(self.processes) > 0:
+                        #     for p in self.processes:
+                        #         p.join()
+                        #     self.processes = []
+                        #     train_results['siamese'] = self.shared_results['siamese']
+
+                        # update siamese model
+                        for _ in range(self.siamese_config['update_steps']):
+                            anchor = self.triplet_buffer['anchor']
+                            positive = self.triplet_buffer['positive']
+                            negative = self.triplet_buffer['negative']
+
+                            if anchor and positive and negative:
+                                train_results = train_siamese(
+                                    siamese_model=self.siamese_model,
+                                    optimizer=self.optimizer,
+                                    loss_fn=self.loss_fn, anchor=anchor,
+                                    positive=positive, negative=negative,
+                                    train_results=train_results)
+                                # p = mp.Process(target=train_siamese,  args=(
+                                #     self.siamese_model, self.optimizer,
+                                #     self.loss_fn, anchor, positive, negative,
+                                #     self.shared_results))
+                                # p.daemon = True
+                                # p.start()
+                                # self.processes.append(p)
+
+                    # make clusters
+                    # lsu = self._counters['last_siamese_update']
+                    # if cur_ts - lsu >= self.siamese_config["update_frequency"]:
                         self.siamese_model.eval()
                         start_cluster = time.time()
 
