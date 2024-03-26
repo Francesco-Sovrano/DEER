@@ -143,7 +143,7 @@ def init_xa_config(self):
             # Setting this to True can be memory expensive, especially for who explanations
             "agent_action_sliding_window": 2 ** 4,
             "episode_window_size": 2 ** 6,
-            "batch_window_size": 2 ** 8,
+            "batch_window_size": 1000 * (2 ** 8),
             "training_step_window_size": 2 ** 2,
         },
         'cluster_selection_policy': "min",
